@@ -6,7 +6,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const scriptRoot = join(root, "scripts");
 const output = join(root, "web", "catalog.json");
 const engines = ["SQL Server", "Oracle", "MariaDB", "MongoDB", "PostgreSQL"];
-const risks = ["READ_ONLY", "MODIFIES_DATA", "MODIFIES_STRUCTURE"];
+const risks = ["READ_ONLY", "TEMPDB_WRITE", "BACKUP", "RESTORE", "MODIFIES_DATA", "MODIFIES_STRUCTURE"];
 const required = ["Name", "Engine", "Category", "Compatibility", "Permissions", "Risk", "Description", "Tags"];
 
 export function parseScript(content, path) {

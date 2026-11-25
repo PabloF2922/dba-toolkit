@@ -1,5 +1,22 @@
 [
   {
+    "path": "scripts/sqlserver/backups/backup_compression_performance.sql",
+    "name": "Compresión y rendimiento histórico de backups",
+    "engine": "SQL Server",
+    "category": "Backups",
+    "compatibility": "SQL Server 2014+ (orientativo; verificar version y entorno)",
+    "permissions": "Lectura de las tablas de historial de backups de msdb; verificar permisos en el entorno",
+    "risk": "READ_ONLY",
+    "description": "Calcula compresión y throughput de respaldos FULL no snapshot en msdb.",
+    "tags": [
+      "backup",
+      "compresion",
+      "throughput",
+      "rendimiento"
+    ],
+    "sql": "/*\n * Name: Compresión y rendimiento histórico de backups\n * Engine: SQL Server\n * Category: Backups\n * Compatibility: SQL Server 2014+ (orientativo; verificar version y entorno)\n * Permissions: Lectura de las tablas de historial de backups de msdb; verificar permisos en el entorno\n * Risk: READ_ONLY\n * Description: Calcula compresión y throughput de respaldos FULL no snapshot en msdb.\n * Tags: backup, compresion, throughput, rendimiento\n */\n\n-- IMPORTANTE: Excluir snapshots no garantiza que el backup sea nativo. El throughput se basa en el tamaño original.\n\n-- Busca backups FULL registrados, excluyendo snapshots.\n-- Calcula ratio de compresión, ahorro de espacio,\n-- duración y throughput promedio en MB/s.\n-- Útil para estimar tiempos de nuevos respaldos.\n\nSELECT TOP 50\n    database_name,\n    backup_start_date,\n\n    CAST(backup_size / 1073741824.0\n        AS DECIMAL(18,2)) AS Original_GB,\n\n    CAST(compressed_backup_size / 1073741824.0\n        AS DECIMAL(18,2)) AS Final_GB,\n\n    CAST(backup_size /\n        NULLIF(compressed_backup_size, 0)\n        AS DECIMAL(10,2)) AS Ratio_Compresion,\n\n    CAST((1.0 - compressed_backup_size /\n        NULLIF(backup_size, 0)) * 100\n        AS DECIMAL(10,2)) AS Ahorro_Pct,\n\n    CAST(DATEDIFF(SECOND,\n        backup_start_date,\n        backup_finish_date) / 60.0\n        AS DECIMAL(10,2)) AS Duracion_Min,\n\n    CAST(backup_size / 1048576.0 /\n        NULLIF(DATEDIFF(SECOND,\n            backup_start_date,\n            backup_finish_date), 0)\n        AS DECIMAL(18,2)) AS Throughput_MB_s\n\nFROM msdb.dbo.backupset\nWHERE type = 'D'\n  AND is_snapshot = 0\n  AND backup_finish_date IS NOT NULL\nORDER BY backup_start_date DESC;\nGO\n"
+  },
+  {
     "path": "scripts/sqlserver/backups/backup_history.sql",
     "name": "Historial de backups",
     "engine": "SQL Server",
@@ -15,6 +32,23 @@
       "msdb"
     ],
     "sql": "/*\r\n * Name: Historial de backups\r\n * Engine: SQL Server\r\n * Category: Backups\r\n * Compatibility: SQL Server 2012+ (verificar en el entorno)\r\n * Permissions: Acceso de lectura a msdb.dbo.backupset\r\n * Risk: READ_ONLY\r\n * Description: Muestra los ultimos 100 backups registrados en msdb.\r\n * Tags: backup, historial, copia, msdb\r\n */\r\n\r\nSELECT TOP (100)\r\n    database_name,\r\n    backup_start_date,\r\n    backup_finish_date,\r\n    type,\r\n    backup_size\r\nFROM msdb.dbo.backupset\r\nORDER BY backup_finish_date DESC;\r\n"
+  },
+  {
+    "path": "scripts/sqlserver/backups/backup_provider_summary.sql",
+    "name": "Resumen del proveedor de backup",
+    "engine": "SQL Server",
+    "category": "Backups",
+    "compatibility": "SQL Server 2014+ (orientativo; verificar version y entorno)",
+    "permissions": "Lectura de las tablas de historial de backups de msdb; verificar permisos en el entorno",
+    "risk": "READ_ONLY",
+    "description": "Consulta los dispositivos, snapshots y nombre de software registrados.",
+    "tags": [
+      "veeam",
+      "proveedor",
+      "snapshot",
+      "vdi"
+    ],
+    "sql": "/*\n * Name: Resumen del proveedor de backup\n * Engine: SQL Server\n * Category: Backups\n * Compatibility: SQL Server 2014+ (orientativo; verificar version y entorno)\n * Permissions: Lectura de las tablas de historial de backups de msdb; verificar permisos en el entorno\n * Risk: READ_ONLY\n * Description: Consulta los dispositivos, snapshots y nombre de software registrados.\n * Tags: veeam, proveedor, snapshot, vdi\n */\n\n-- IMPORTANTE: Reemplazar NombreDeBase; el software registrado no identifica necesariamente al orquestador.\n\n-- Consulta rápida para identificar el método de respaldo.\n-- Útil para detectar VDI, snapshots y software registrado.\n-- software_name puede indicar Microsoft SQL Server\n-- incluso cuando el respaldo es coordinado por Veeam.\n\nSELECT TOP 5\n    b.is_snapshot,\n    b.is_copy_only,\n    b.software_vendor_id,\n    m.software_name,\n    f.device_type,\n    f.physical_device_name\n\nFROM msdb.dbo.backupset b\nLEFT JOIN msdb.dbo.backupmediafamily f\n    ON b.media_set_id = f.media_set_id\nLEFT JOIN msdb.dbo.backupmediaset m\n    ON b.media_set_id = m.media_set_id\n\nWHERE b.database_name = 'NombreDeBase'\n  AND b.type = 'D'\nORDER BY b.backup_finish_date DESC;\nGO\n"
   },
   {
     "path": "scripts/sqlserver/backups/backup_size_duration.sql",
@@ -35,6 +69,146 @@
     "sql": "/*\r\n * Name: Tamaño y duracion de backups\r\n * Engine: SQL Server\r\n * Category: Backups\r\n * Compatibility: SQL Server 2012+ (verificar en el entorno)\r\n * Permissions: Acceso de lectura a msdb.dbo.backupset\r\n * Risk: READ_ONLY\r\n * Description: Muestra tamaño, compresion y duracion de los ultimos 100 backups.\r\n * Tags: backup, tamaño, duracion, compresion, msdb\r\n */\r\n\r\nSELECT TOP (100)\r\n    database_name,\r\n    backup_start_date,\r\n    backup_finish_date,\r\n    type,\r\n    DATEDIFF(SECOND, backup_start_date, backup_finish_date) AS duration_seconds,\r\n    backup_size / 1048576.0 AS backup_size_mb,\r\n    compressed_backup_size / 1048576.0 AS compressed_size_mb\r\nFROM msdb.dbo.backupset\r\nORDER BY backup_finish_date DESC;\r\n"
   },
   {
+    "path": "scripts/sqlserver/backups/backup_snapshot_devices.sql",
+    "name": "Identificar snapshots y dispositivos de backup",
+    "engine": "SQL Server",
+    "category": "Backups",
+    "compatibility": "SQL Server 2014+ (orientativo; verificar version y entorno)",
+    "permissions": "Lectura de las tablas de historial de backups de msdb; verificar permisos en el entorno",
+    "risk": "READ_ONLY",
+    "description": "Examina metadatos de snapshots, dispositivos y proveedor en backups FULL.",
+    "tags": [
+      "veeam",
+      "snapshot",
+      "vdi",
+      "backup"
+    ],
+    "sql": "/*\n * Name: Identificar snapshots y dispositivos de backup\n * Engine: SQL Server\n * Category: Backups\n * Compatibility: SQL Server 2014+ (orientativo; verificar version y entorno)\n * Permissions: Lectura de las tablas de historial de backups de msdb; verificar permisos en el entorno\n * Risk: READ_ONLY\n * Description: Examina metadatos de snapshots, dispositivos y proveedor en backups FULL.\n * Tags: veeam, snapshot, vdi, backup\n */\n\n-- IMPORTANTE: Reemplazar NombreDeBase; estos datos no identifican de forma concluyente al producto o job.\n\n-- Permite identificar si el backup utiliza snapshots,\n-- dispositivos virtuales (VDI) u otro mecanismo.\n--\n-- is_snapshot = 1 : backup mediante snapshot\n-- device_type = 7 : dispositivo virtual\n-- is_copy_only = 1 : backup COPY_ONLY\n--\n-- El tiempo registrado para un snapshot no necesariamente\n-- equivale al tiempo completo del job de Veeam.\n\nSELECT TOP 20\n    b.database_name,\n    b.backup_start_date,\n    b.backup_finish_date,\n\n    DATEDIFF(SECOND,\n        b.backup_start_date,\n        b.backup_finish_date) AS Duracion_Seg,\n\n    CAST(b.backup_size / 1073741824.0\n        AS DECIMAL(18,2)) AS Backup_GB,\n\n    b.is_snapshot,\n    b.is_copy_only,\n    b.user_name,\n    b.software_vendor_id,\n    m.software_name,\n    f.device_type,\n    f.physical_device_name\n\nFROM msdb.dbo.backupset b\nLEFT JOIN msdb.dbo.backupmediafamily f\n    ON b.media_set_id = f.media_set_id\nLEFT JOIN msdb.dbo.backupmediaset m\n    ON b.media_set_id = m.media_set_id\n\nWHERE b.database_name = 'NombreDeBase'\n  AND b.type = 'D'\nORDER BY b.backup_finish_date DESC;\nGO\n"
+  },
+  {
+    "path": "scripts/sqlserver/backups/backup_throughput_errorlog.sql",
+    "name": "Velocidad de backups en ERRORLOG",
+    "engine": "SQL Server",
+    "category": "Backups",
+    "compatibility": "SQL Server 2014+ (orientativo; verificar version y entorno)",
+    "permissions": "Permiso para ejecutar xp_readerrorlog y leer el errorlog; verificar segun version",
+    "risk": "READ_ONLY",
+    "description": "Busca mensajes con velocidad de backup en el errorlog actual y anteriores.",
+    "tags": [
+      "backup",
+      "errorlog",
+      "velocidad",
+      "throughput"
+    ],
+    "sql": "/*\n * Name: Velocidad de backups en ERRORLOG\n * Engine: SQL Server\n * Category: Backups\n * Compatibility: SQL Server 2014+ (orientativo; verificar version y entorno)\n * Permissions: Permiso para ejecutar xp_readerrorlog y leer el errorlog; verificar segun version\n * Risk: READ_ONLY\n * Description: Busca mensajes con velocidad de backup en el errorlog actual y anteriores.\n * Tags: backup, errorlog, velocidad, throughput\n */\n\n-- IMPORTANTE: Los archivos históricos pueden no existir o no conservar esos mensajes.\n\n-- Busca mensajes de backups anteriores con throughput\n-- expresado en MB/sec.\n--\n-- Permite encontrar estadísticas de backups nativos\n-- sin ejecutar nuevos respaldos.\n--\n-- Los logs históricos pueden no conservar la información.\n\n-- ERRORLOG actual\nEXEC xp_readerrorlog 0, 1, N'MB/sec';\n\n-- ERRORLOG anteriores\nEXEC xp_readerrorlog 1, 1, N'MB/sec';\nEXEC xp_readerrorlog 2, 1, N'MB/sec';\nEXEC xp_readerrorlog 3, 1, N'MB/sec';\nGO\n"
+  },
+  {
+    "path": "scripts/sqlserver/backups/database_backup_history.sql",
+    "name": "Historial de backups por base",
+    "engine": "SQL Server",
+    "category": "Backups",
+    "compatibility": "SQL Server 2014+ (orientativo; verificar version y entorno)",
+    "permissions": "Lectura de las tablas de historial de backups de msdb; verificar permisos en el entorno",
+    "risk": "READ_ONLY",
+    "description": "Historial de respaldos de una base durante los últimos 30 días.",
+    "tags": [
+      "backup",
+      "historial",
+      "full",
+      "log",
+      "diferencial"
+    ],
+    "sql": "/*\n * Name: Historial de backups por base\n * Engine: SQL Server\n * Category: Backups\n * Compatibility: SQL Server 2014+ (orientativo; verificar version y entorno)\n * Permissions: Lectura de las tablas de historial de backups de msdb; verificar permisos en el entorno\n * Risk: READ_ONLY\n * Description: Historial de respaldos de una base durante los últimos 30 días.\n * Tags: backup, historial, full, log, diferencial\n */\n\n-- IMPORTANTE: Reemplazar NombreDeBase antes de ejecutar.\n\n-- Lista respaldos FULL, DIFFERENTIAL y LOG de los últimos\n-- 30 días, incluyendo tamaño y duración.\n-- Cambiar el nombre de la BD en el WHERE.\n\nSELECT\n    database_name AS Database_Name,\n\n    CASE type\n        WHEN 'D' THEN 'FULL'\n        WHEN 'I' THEN 'DIFFERENTIAL'\n        WHEN 'L' THEN 'TRANSACTION LOG'\n        ELSE type\n    END AS Tipo_Backup,\n\n    backup_start_date AS Inicio,\n    backup_finish_date AS Fin,\n\n    CAST(backup_size / 1073741824.0\n        AS DECIMAL(18,2)) AS Backup_GB,\n\n    CAST(compressed_backup_size / 1073741824.0\n        AS DECIMAL(18,2)) AS Backup_Comprimido_GB,\n\n    CAST(DATEDIFF(SECOND,\n        backup_start_date,\n        backup_finish_date) / 60.0\n        AS DECIMAL(18,2)) AS Duracion_Min,\n\n    is_copy_only AS Copy_Only\n\nFROM msdb.dbo.backupset\nWHERE database_name = 'NombreDeBase'\n  AND backup_start_date >= DATEADD(DAY, -30, GETDATE())\nORDER BY backup_start_date DESC;\nGO\n"
+  },
+  {
+    "path": "scripts/sqlserver/backups/database_size_last_full.sql",
+    "name": "Tamaño de bases y último backup FULL",
+    "engine": "SQL Server",
+    "category": "Backups",
+    "compatibility": "SQL Server 2014+ (orientativo; verificar version y entorno)",
+    "permissions": "Lectura de las tablas de historial de backups de msdb; verificar permisos en el entorno; visibilidad de bases y archivos",
+    "risk": "READ_ONLY",
+    "description": "Tamaño asignado por base y último respaldo completo registrado en msdb.",
+    "tags": [
+      "bases",
+      "tamaño",
+      "full",
+      "historial"
+    ],
+    "sql": "/*\n * Name: Tamaño de bases y último backup FULL\n * Engine: SQL Server\n * Category: Backups\n * Compatibility: SQL Server 2014+ (orientativo; verificar version y entorno)\n * Permissions: Lectura de las tablas de historial de backups de msdb; verificar permisos en el entorno; visibilidad de bases y archivos\n * Risk: READ_ONLY\n * Description: Tamaño asignado por base y último respaldo completo registrado en msdb.\n * Tags: bases, tamaño, full, historial\n */\n\n-- IMPORTANTE: El último FULL registrado puede ser COPY_ONLY o snapshot; no confirma que sea recuperable.\n\n-- Muestra tamaño de datos, logs, total, último backup,\n-- tamaño comprimido y duración del respaldo.\n-- Ordena las bases por tamaño descendente.\n-- No incluye tempdb.\n\nUSE master;\nGO\n\nWITH DBSize AS (\n    SELECT\n        database_id,\n        SUM(CASE WHEN type = 0\n            THEN CAST(size AS BIGINT) ELSE 0 END)\n            * 8.0 / 1024 / 1024 AS Data_GB,\n\n        SUM(CASE WHEN type = 1\n            THEN CAST(size AS BIGINT) ELSE 0 END)\n            * 8.0 / 1024 / 1024 AS Log_GB,\n\n        SUM(CAST(size AS BIGINT))\n            * 8.0 / 1024 / 1024 AS Total_GB\n    FROM sys.master_files\n    GROUP BY database_id\n)\nSELECT\n    d.name AS Database_Name,\n    d.state_desc AS Estado,\n    d.recovery_model_desc AS Recovery_Model,\n\n    CAST(s.Data_GB AS DECIMAL(18,2)) AS Data_GB,\n    CAST(s.Log_GB AS DECIMAL(18,2)) AS Log_GB,\n    CAST(s.Total_GB AS DECIMAL(18,2)) AS Total_GB,\n\n    CAST(b.backup_size / 1073741824.0\n        AS DECIMAL(18,2)) AS Backup_GB,\n\n    CAST(b.compressed_backup_size / 1073741824.0\n        AS DECIMAL(18,2)) AS Backup_Comprimido_GB,\n\n    b.backup_start_date AS Inicio_Backup,\n    b.backup_finish_date AS Fin_Backup,\n\n    DATEDIFF(SECOND,\n        b.backup_start_date,\n        b.backup_finish_date) AS Duracion_Seg,\n\n    CAST(DATEDIFF(SECOND,\n        b.backup_start_date,\n        b.backup_finish_date) / 60.0\n        AS DECIMAL(18,2)) AS Duracion_Min\n\nFROM sys.databases d\nJOIN DBSize s\n    ON d.database_id = s.database_id\nOUTER APPLY (\n    SELECT TOP 1 *\n    FROM msdb.dbo.backupset b\n    WHERE b.database_name = d.name\n      AND b.type = 'D'\n      AND b.backup_finish_date IS NOT NULL\n    ORDER BY b.backup_finish_date DESC\n) b\nWHERE d.name <> 'tempdb'\nORDER BY s.Total_GB DESC;\nGO\n"
+  },
+  {
+    "path": "scripts/sqlserver/backups/manual_full_local.sql",
+    "name": "Backup FULL comprimido local",
+    "engine": "SQL Server",
+    "category": "Backups",
+    "compatibility": "SQL Server 2014+ (orientativo; verificar version y entorno)",
+    "permissions": "Permisos BACKUP DATABASE y escritura de la cuenta del servicio SQL Server en el destino",
+    "risk": "BACKUP",
+    "description": "Plantilla comentada para backup FULL local con COPY_ONLY, compresión y checksum.",
+    "tags": [
+      "backup",
+      "full",
+      "copy_only",
+      "compresion",
+      "local"
+    ],
+    "sql": "/*\n * Name: Backup FULL comprimido local\n * Engine: SQL Server\n * Category: Backups\n * Compatibility: SQL Server 2014+ (orientativo; verificar version y entorno)\n * Permissions: Permisos BACKUP DATABASE y escritura de la cuenta del servicio SQL Server en el destino\n * Risk: BACKUP\n * Description: Plantilla comentada para backup FULL local con COPY_ONLY, compresión y checksum.\n * Tags: backup, full, copy_only, compresion, local\n */\n\n-- IMPORTANTE: Plantilla comentada: adaptar base y ruta, revisar destino y autorizar antes de ejecutar.\n\n-- Genera backup FULL usando COPY_ONLY, COMPRESSION\n-- y CHECKSUM.\n--\n-- COPY_ONLY evita alterar la base de respaldos diferenciales\n-- de la estrategia existente.\n--\n-- Validar espacio disponible, permisos y ruta.\n-- Requiere autorización antes de ejecutarlo.\n--\n-- DESCOMENTAR ÚNICAMENTE CUANDO CORRESPONDA.\n\n/*\nBACKUP DATABASE [NombreDeBase]\nTO DISK = 'E:\\Backups\\NombreDeBase_FULL.bak'\nWITH\n    COPY_ONLY,\n    COMPRESSION,\n    CHECKSUM,\n    STATS = 5;\nGO\n*/\n"
+  },
+  {
+    "path": "scripts/sqlserver/backups/manual_full_network.sql",
+    "name": "Backup FULL a recurso de red",
+    "engine": "SQL Server",
+    "category": "Backups",
+    "compatibility": "SQL Server 2014+ (orientativo; verificar version y entorno)",
+    "permissions": "Permisos BACKUP DATABASE y escritura de la cuenta del servicio SQL Server en el destino",
+    "risk": "BACKUP",
+    "description": "Plantilla comentada para backup FULL a un recurso compartido.",
+    "tags": [
+      "backup",
+      "full",
+      "red",
+      "unc",
+      "copy_only"
+    ],
+    "sql": "/*\n * Name: Backup FULL a recurso de red\n * Engine: SQL Server\n * Category: Backups\n * Compatibility: SQL Server 2014+ (orientativo; verificar version y entorno)\n * Permissions: Permisos BACKUP DATABASE y escritura de la cuenta del servicio SQL Server en el destino\n * Risk: BACKUP\n * Description: Plantilla comentada para backup FULL a un recurso compartido.\n * Tags: backup, full, red, unc, copy_only\n */\n\n-- IMPORTANTE: Plantilla comentada: adaptar base y ruta; verificar acceso, espacio y autorización.\n\n-- Envía directamente el backup a una ruta UNC.\n-- No necesita generar previamente un archivo local.\n--\n-- La cuenta del servicio SQL Server debe tener acceso\n-- de escritura al recurso compartido.\n--\n-- Sustituir servidor y recurso.\n-- Verificar que el destino tenga espacio suficiente.\n--\n-- DESCOMENTAR ÚNICAMENTE CUANDO CORRESPONDA.\n\n/*\nBACKUP DATABASE [NombreDeBase]\nTO DISK = '\\\\servidor\\recurso\\NombreDeBase_FULL.bak'\nWITH\n    COPY_ONLY,\n    COMPRESSION,\n    CHECKSUM,\n    STATS = 5;\nGO\n*/\n"
+  },
+  {
+    "path": "scripts/sqlserver/backups/manual_full_striped.sql",
+    "name": "Backup FULL dividido en varios archivos",
+    "engine": "SQL Server",
+    "category": "Backups",
+    "compatibility": "SQL Server 2014+ (orientativo; verificar version y entorno)",
+    "permissions": "Permisos BACKUP DATABASE y escritura de la cuenta del servicio SQL Server en el destino",
+    "risk": "BACKUP",
+    "description": "Plantilla comentada para distribuir un backup FULL entre varios archivos.",
+    "tags": [
+      "backup",
+      "full",
+      "striping",
+      "discos",
+      "copy_only"
+    ],
+    "sql": "/*\n * Name: Backup FULL dividido en varios archivos\n * Engine: SQL Server\n * Category: Backups\n * Compatibility: SQL Server 2014+ (orientativo; verificar version y entorno)\n * Permissions: Permisos BACKUP DATABASE y escritura de la cuenta del servicio SQL Server en el destino\n * Risk: BACKUP\n * Description: Plantilla comentada para distribuir un backup FULL entre varios archivos.\n * Tags: backup, full, striping, discos, copy_only\n */\n\n-- IMPORTANTE: Plantilla comentada: adaptar rutas y base; se necesitan todos los archivos para restaurar.\n\n-- Permite repartir un mismo backup entre varios archivos\n-- y destinos físicos.\n--\n-- Para restaurar se necesitan TODOS los archivos.\n-- SQL Server puede escribirlos en paralelo.\n--\n-- Cuidado: un volumen puede llenarse antes que los otros.\n-- Validar espacio libre y rendimiento de cada destino.\n--\n-- DESCOMENTAR ÚNICAMENTE CUANDO CORRESPONDA.\n\n/*\nBACKUP DATABASE [NombreDeBase]\nTO\n    DISK = 'E:\\NombreDeBase_FULL_01.bak',\n    DISK = 'F:\\NombreDeBase_FULL_02.bak',\n    DISK = 'E:\\NombreDeBase_FULL_03.bak',\n    DISK = 'F:\\NombreDeBase_FULL_04.bak'\nWITH\n    COPY_ONLY,\n    COMPRESSION,\n    CHECKSUM,\n    STATS = 5;\nGO\n*/\n"
+  },
+  {
+    "path": "scripts/sqlserver/backups/running_backups.sql",
+    "name": "Monitorear backups en ejecución",
+    "engine": "SQL Server",
+    "category": "Backups",
+    "compatibility": "SQL Server 2014+ (orientativo; verificar version y entorno)",
+    "permissions": "Permisos de estado del servidor y acceso a metadatos; verificar segun version y entorno",
+    "risk": "READ_ONLY",
+    "description": "Progreso y tiempos estimados de operaciones de backup activas.",
+    "tags": [
+      "backup",
+      "progreso",
+      "sesiones",
+      "monitoreo"
+    ],
+    "sql": "/*\n * Name: Monitorear backups en ejecución\n * Engine: SQL Server\n * Category: Backups\n * Compatibility: SQL Server 2014+ (orientativo; verificar version y entorno)\n * Permissions: Permisos de estado del servidor y acceso a metadatos; verificar segun version y entorno\n * Risk: READ_ONLY\n * Description: Progreso y tiempos estimados de operaciones de backup activas.\n * Tags: backup, progreso, sesiones, monitoreo\n */\n\n-- IMPORTANTE: Los tiempos de finalización son estimaciones.\n\n-- Muestra porcentaje completado, tiempo transcurrido,\n-- tiempo restante estimado y tipo de espera.\n-- Ejecutar desde otra sesión de SSMS mientras corre.\n\nSELECT\n    session_id,\n    DB_NAME(database_id) AS Database_Name,\n    command,\n    start_time,\n\n    CAST(percent_complete AS DECIMAL(5,2))\n        AS Porcentaje,\n\n    CAST(total_elapsed_time / 60000.0\n        AS DECIMAL(18,2)) AS Min_Transcurridos,\n\n    CAST(estimated_completion_time / 60000.0\n        AS DECIMAL(18,2)) AS Min_Restantes,\n\n    DATEADD(SECOND,\n        estimated_completion_time / 1000,\n        GETDATE()) AS Fin_Estimado,\n\n    wait_type\n\nFROM sys.dm_exec_requests\nWHERE command LIKE 'BACKUP%';\nGO\n"
+  },
+  {
     "path": "scripts/sqlserver/instances/instance_uptime.sql",
     "name": "Ultimo inicio de SQL Server",
     "engine": "SQL Server",
@@ -50,5 +224,199 @@
       "patching"
     ],
     "sql": "/*\r\n * Name: Ultimo inicio de SQL Server\r\n * Engine: SQL Server\r\n * Category: Instancias\r\n * Compatibility: SQL Server 2012+ (verificar para Azure SQL)\r\n * Permissions: VIEW SERVER STATE hasta SQL Server 2019; VIEW SERVER PERFORMANCE STATE desde SQL Server 2022\r\n * Risk: READ_ONLY\r\n * Description: Consulta la fecha y hora del ultimo inicio de la instancia.\r\n * Tags: reinicio, uptime, inicio, patching\r\n */\r\n\r\nSELECT sqlserver_start_time\r\nFROM sys.dm_os_sys_info;\r\n"
+  },
+  {
+    "path": "scripts/sqlserver/instances/resources_and_backup_configuration.sql",
+    "name": "Recursos y configuración de backup",
+    "engine": "SQL Server",
+    "category": "Instancias",
+    "compatibility": "SQL Server 2014+ (orientativo; verificar version y entorno)",
+    "permissions": "Permisos de estado del servidor y acceso a metadatos; verificar segun version y entorno; acceso a configuracion y metadatos de la base",
+    "risk": "READ_ONLY",
+    "description": "Consulta versión, CPU, memoria, TDE y configuración de compresión.",
+    "tags": [
+      "cpu",
+      "memoria",
+      "version",
+      "tde",
+      "compresion"
+    ],
+    "sql": "/*\n * Name: Recursos y configuración de backup\n * Engine: SQL Server\n * Category: Instancias\n * Compatibility: SQL Server 2014+ (orientativo; verificar version y entorno)\n * Permissions: Permisos de estado del servidor y acceso a metadatos; verificar segun version y entorno; acceso a configuracion y metadatos de la base\n * Risk: READ_ONLY\n * Description: Consulta versión, CPU, memoria, TDE y configuración de compresión.\n * Tags: cpu, memoria, version, tde, compresion\n */\n\n-- IMPORTANTE: Reemplazar NombreDeBase. La lectura de sp_configure no cambia la configuración.\n\n-- Muestra recursos disponibles para SQL Server.\n-- Permite conocer la configuración de compresión\n-- predeterminada y si la BD está cifrada con TDE.\n\nSELECT @@VERSION AS Version_SQL;\n\nSELECT\n    cpu_count AS CPU_Logicas,\n    scheduler_count AS Schedulers,\n    physical_memory_kb / 1024 / 1024 AS RAM_GB\nFROM sys.dm_os_sys_info;\n\nSELECT\n    name,\n    is_encrypted,\n    recovery_model_desc\nFROM sys.databases\nWHERE name = 'NombreDeBase';\n\nEXEC sp_configure 'backup compression default';\nGO\n"
+  },
+  {
+    "path": "scripts/sqlserver/instances/sql_server_service_account.sql",
+    "name": "Cuenta del servicio SQL Server",
+    "engine": "SQL Server",
+    "category": "Instancias",
+    "compatibility": "SQL Server 2014+ (orientativo; verificar version y entorno)",
+    "permissions": "Permisos de estado del servidor y acceso a metadatos; verificar segun version y entorno",
+    "risk": "READ_ONLY",
+    "description": "Consulta cuentas y estados de los servicios de SQL Server.",
+    "tags": [
+      "servicio",
+      "cuenta",
+      "permisos",
+      "backup"
+    ],
+    "sql": "/*\n * Name: Cuenta del servicio SQL Server\n * Engine: SQL Server\n * Category: Instancias\n * Compatibility: SQL Server 2014+ (orientativo; verificar version y entorno)\n * Permissions: Permisos de estado del servidor y acceso a metadatos; verificar segun version y entorno\n * Risk: READ_ONLY\n * Description: Consulta cuentas y estados de los servicios de SQL Server.\n * Tags: servicio, cuenta, permisos, backup\n */\n\n-- IMPORTANTE: Verificar permisos sobre sys.dm_server_services para la versión correspondiente.\n\n-- Identifica la cuenta que ejecuta SQL Server.\n-- Importante para validar permisos de escritura al\n-- realizar backups directamente a recursos compartidos.\n\nSELECT\n    servicename,\n    service_account,\n    status_desc\n\nFROM sys.dm_server_services;\nGO\n"
+  },
+  {
+    "path": "scripts/sqlserver/performance/io_cumulative_by_file.sql",
+    "name": "I/O acumulado por archivo",
+    "engine": "SQL Server",
+    "category": "Performance",
+    "compatibility": "SQL Server 2014+ (orientativo; verificar version y entorno)",
+    "permissions": "Permisos de estado del servidor y acceso a metadatos; verificar segun version y entorno",
+    "risk": "READ_ONLY",
+    "description": "Lecturas, escrituras, volumen y latencia acumulados por archivo.",
+    "tags": [
+      "io",
+      "lecturas",
+      "escrituras",
+      "latencia",
+      "historico"
+    ],
+    "sql": "/*\n * Name: I/O acumulado por archivo\n * Engine: SQL Server\n * Category: Performance\n * Compatibility: SQL Server 2014+ (orientativo; verificar version y entorno)\n * Permissions: Permisos de estado del servidor y acceso a metadatos; verificar segun version y entorno\n * Risk: READ_ONLY\n * Description: Lecturas, escrituras, volumen y latencia acumulados por archivo.\n * Tags: io, lecturas, escrituras, latencia, historico\n */\n\n-- IMPORTANTE: Ajustar X: a la unidad deseada. Los contadores pueden reiniciarse.\n\n-- Muestra operaciones y volumen total de I/O registrado\n-- por SQL Server desde el reinicio de sus contadores.\n--\n-- Incluye:\n--  Total de lecturas y escrituras\n--  GB leídos y escritos\n--  Latencia promedio histórica\n--\n-- No permite determinar el throughput máximo.\n\nSELECT\n    DB_NAME(v.database_id) AS Base,\n    f.physical_name AS Archivo,\n\n    v.num_of_reads AS Total_Lecturas,\n    v.num_of_writes AS Total_Escrituras,\n\n    CAST(v.num_of_bytes_read / 1073741824.0\n        AS DECIMAL(18,2)) AS Total_Leido_GB,\n\n    CAST(v.num_of_bytes_written / 1073741824.0\n        AS DECIMAL(18,2)) AS Total_Escrito_GB,\n\n    CAST(v.io_stall_read_ms * 1.0 /\n        NULLIF(v.num_of_reads, 0)\n        AS DECIMAL(18,2)) AS Latencia_Lectura_ms,\n\n    CAST(v.io_stall_write_ms * 1.0 /\n        NULLIF(v.num_of_writes, 0)\n        AS DECIMAL(18,2)) AS Latencia_Escritura_ms\n\nFROM sys.dm_io_virtual_file_stats(NULL, NULL) v\n\nJOIN sys.master_files f\n    ON v.database_id = f.database_id\n    AND v.file_id = f.file_id\n\nWHERE f.physical_name LIKE 'X:\\%'\nORDER BY Total_Leido_GB DESC;\nGO\n"
+  },
+  {
+    "path": "scripts/sqlserver/performance/io_historical_average.sql",
+    "name": "Promedios históricos de I/O",
+    "engine": "SQL Server",
+    "category": "Performance",
+    "compatibility": "SQL Server 2014+ (orientativo; verificar version y entorno)",
+    "permissions": "Permisos de estado del servidor y acceso a metadatos; verificar segun version y entorno",
+    "risk": "READ_ONLY",
+    "description": "Estima throughput promedio desde el inicio de la instancia.",
+    "tags": [
+      "io",
+      "historico",
+      "promedio",
+      "throughput"
+    ],
+    "sql": "/*\n * Name: Promedios históricos de I/O\n * Engine: SQL Server\n * Category: Performance\n * Compatibility: SQL Server 2014+ (orientativo; verificar version y entorno)\n * Permissions: Permisos de estado del servidor y acceso a metadatos; verificar segun version y entorno\n * Risk: READ_ONLY\n * Description: Estima throughput promedio desde el inicio de la instancia.\n * Tags: io, historico, promedio, throughput\n */\n\n-- IMPORTANTE: Ajustar X: a la unidad deseada. Es una aproximación, no mide la capacidad máxima.\n\n-- Calcula MB/s promedio desde el inicio de la instancia.\n-- Incluye tiempo de inactividad.\n--\n-- Versión corregida: no utiliza sample_ms, que puede\n-- desbordarse en versiones antiguas de SQL Server.\n--\n-- Es una aproximación: los contadores de I/O pueden\n-- reiniciarse después del inicio de la instancia.\n\nSELECT\n    DB_NAME(v.database_id) AS Base,\n    f.type_desc AS Tipo,\n    s.sqlserver_start_time AS Inicio_Instancia,\n\n    DATEDIFF(HOUR,\n        s.sqlserver_start_time,\n        GETDATE()) / 24.0 AS Dias_Instancia,\n\n    CAST(v.num_of_bytes_read / 1048576.0 /\n        NULLIF(DATEDIFF(SECOND,\n            s.sqlserver_start_time,\n            GETDATE()), 0)\n        AS DECIMAL(18,2)) AS Lectura_Promedio_MB_s,\n\n    CAST(v.num_of_bytes_written / 1048576.0 /\n        NULLIF(DATEDIFF(SECOND,\n            s.sqlserver_start_time,\n            GETDATE()), 0)\n        AS DECIMAL(18,2)) AS Escritura_Promedio_MB_s,\n\n    CAST(v.num_of_bytes_read / 1024.0 /\n        NULLIF(v.num_of_reads, 0)\n        AS DECIMAL(18,2)) AS KB_Por_Lectura,\n\n    CAST(v.num_of_bytes_written / 1024.0 /\n        NULLIF(v.num_of_writes, 0)\n        AS DECIMAL(18,2)) AS KB_Por_Escritura\n\nFROM sys.dm_io_virtual_file_stats(NULL, NULL) v\n\nJOIN sys.master_files f\n    ON v.database_id = f.database_id\n    AND v.file_id = f.file_id\n\nCROSS JOIN sys.dm_os_sys_info s\n\nWHERE f.physical_name LIKE 'X:\\%'\nORDER BY Base, Tipo;\nGO\n"
+  },
+  {
+    "path": "scripts/sqlserver/performance/io_interval_60_seconds.sql",
+    "name": "I/O por archivo en 60 segundos",
+    "engine": "SQL Server",
+    "category": "Performance",
+    "compatibility": "SQL Server 2014+ (orientativo; verificar version y entorno)",
+    "permissions": "Permisos de estado del servidor y acceso a metadatos; verificar segun version y entorno; permisos para crear tablas temporales",
+    "risk": "TEMPDB_WRITE",
+    "description": "Compara dos muestras de I/O y calcula throughput, IOPS y latencia.",
+    "tags": [
+      "io",
+      "iops",
+      "latencia",
+      "throughput",
+      "intervalo"
+    ],
+    "sql": "/*\n * Name: I/O por archivo en 60 segundos\n * Engine: SQL Server\n * Category: Performance\n * Compatibility: SQL Server 2014+ (orientativo; verificar version y entorno)\n * Permissions: Permisos de estado del servidor y acceso a metadatos; verificar segun version y entorno; permisos para crear tablas temporales\n * Risk: TEMPDB_WRITE\n * Description: Compara dos muestras de I/O y calcula throughput, IOPS y latencia.\n * Tags: io, iops, latencia, throughput, intervalo\n */\n\n-- IMPORTANTE: Ajustar X: a la unidad deseada. Espera 60 segundos y crea y elimina #IO_Inicial en tempdb; no mide capacidad máxima.\n\n-- Toma dos muestras de los contadores de SQL Server\n-- separadas por 60 segundos.\n--\n-- Muestra:\n--  Lectura y escritura MB/s\n--  IOPS lectura y escritura\n--  Latencia promedio de lectura y escritura\n--\n-- Filtra los archivos ubicados en X:.\n-- Mide actividad real durante el intervalo,\n-- NO la velocidad máxima que soporta el almacenamiento.\n\nIF OBJECT_ID('tempdb..#IO_Inicial') IS NOT NULL\n    DROP TABLE #IO_Inicial;\n\nSELECT\n    database_id,\n    file_id,\n    num_of_reads,\n    num_of_writes,\n    num_of_bytes_read,\n    num_of_bytes_written,\n    io_stall_read_ms,\n    io_stall_write_ms\nINTO #IO_Inicial\nFROM sys.dm_io_virtual_file_stats(NULL, NULL);\n\nDECLARE @Inicio DATETIME2 = SYSDATETIME();\n\nWAITFOR DELAY '00:01:00';\n\nDECLARE @Segundos FLOAT =\n    DATEDIFF(MILLISECOND, @Inicio, SYSDATETIME()) / 1000.0;\n\nSELECT\n    DB_NAME(v.database_id) AS Base,\n    f.type_desc AS Tipo,\n    f.physical_name AS Archivo,\n\n    CAST((v.num_of_bytes_read - i.num_of_bytes_read)\n        / 1048576.0 / @Segundos\n        AS DECIMAL(18,2)) AS Lectura_MB_s,\n\n    CAST((v.num_of_bytes_written - i.num_of_bytes_written)\n        / 1048576.0 / @Segundos\n        AS DECIMAL(18,2)) AS Escritura_MB_s,\n\n    CAST((v.num_of_reads - i.num_of_reads)\n        / @Segundos\n        AS DECIMAL(18,2)) AS IOPS_Lectura,\n\n    CAST((v.num_of_writes - i.num_of_writes)\n        / @Segundos\n        AS DECIMAL(18,2)) AS IOPS_Escritura,\n\n    CAST((v.io_stall_read_ms - i.io_stall_read_ms)\n        * 1.0 /\n        NULLIF(v.num_of_reads - i.num_of_reads, 0)\n        AS DECIMAL(18,2)) AS Latencia_Lectura_ms,\n\n    CAST((v.io_stall_write_ms - i.io_stall_write_ms)\n        * 1.0 /\n        NULLIF(v.num_of_writes - i.num_of_writes, 0)\n        AS DECIMAL(18,2)) AS Latencia_Escritura_ms\n\nFROM sys.dm_io_virtual_file_stats(NULL, NULL) v\n\nJOIN #IO_Inicial i\n    ON v.database_id = i.database_id\n    AND v.file_id = i.file_id\n\nJOIN sys.master_files f\n    ON v.database_id = f.database_id\n    AND v.file_id = f.file_id\n\nWHERE f.physical_name LIKE 'X:\\%'\nORDER BY Base, Tipo;\n\nDROP TABLE #IO_Inicial;\nGO\n"
+  },
+  {
+    "path": "scripts/sqlserver/restore/backup_file_list.sql",
+    "name": "Consultar archivos incluidos en un backup",
+    "engine": "SQL Server",
+    "category": "Restore",
+    "compatibility": "SQL Server 2014+ (orientativo; verificar version y entorno)",
+    "permissions": "Permisos para RESTORE FILELISTONLY y lectura del backup; verificar segun version y destino",
+    "risk": "READ_ONLY",
+    "description": "Plantilla comentada para consultar archivos lógicos y físicos de un backup.",
+    "tags": [
+      "restore",
+      "filelistonly",
+      "archivos",
+      "nombres logicos"
+    ],
+    "sql": "/*\n * Name: Consultar archivos incluidos en un backup\n * Engine: SQL Server\n * Category: Restore\n * Compatibility: SQL Server 2014+ (orientativo; verificar version y entorno)\n * Permissions: Permisos para RESTORE FILELISTONLY y lectura del backup; verificar segun version y destino\n * Risk: READ_ONLY\n * Description: Plantilla comentada para consultar archivos lógicos y físicos de un backup.\n * Tags: restore, filelistonly, archivos, nombres logicos\n */\n\n-- IMPORTANTE: Plantilla comentada: adaptar la ruta y comprobar permisos antes de ejecutar.\n\n-- Consulta los nombres lógicos y rutas originales\n-- de los archivos incluidos dentro de un backup.\n--\n-- Es necesario antes de restaurar con WITH MOVE.\n-- No restaura ni modifica la base de datos.\n--\n-- Sustituir la ruta por un backup existente.\n--\n-- DESCOMENTAR LUEGO DE CONFIGURAR LA RUTA.\n\n/*\nRESTORE FILELISTONLY\nFROM DISK = '\\\\servidor\\backups\\NombreDeBase_FULL.bak';\nGO\n*/\n"
+  },
+  {
+    "path": "scripts/sqlserver/restore/restore_with_move.sql",
+    "name": "Restaurar una base en otras rutas",
+    "engine": "SQL Server",
+    "category": "Restore",
+    "compatibility": "SQL Server 2014+ (orientativo; verificar version y entorno)",
+    "permissions": "Permisos RESTORE DATABASE y acceso de la cuenta del servicio a origen y destinos",
+    "risk": "RESTORE",
+    "description": "Plantilla comentada de restauración con MOVE para datos y log.",
+    "tags": [
+      "restore",
+      "move",
+      "mdf",
+      "ldf",
+      "recuperacion"
+    ],
+    "sql": "/*\n * Name: Restaurar una base en otras rutas\n * Engine: SQL Server\n * Category: Restore\n * Compatibility: SQL Server 2014+ (orientativo; verificar version y entorno)\n * Permissions: Permisos RESTORE DATABASE y acceso de la cuenta del servicio a origen y destinos\n * Risk: RESTORE\n * Description: Plantilla comentada de restauración con MOVE para datos y log.\n * Tags: restore, move, mdf, ldf, recuperacion\n */\n\n-- IMPORTANTE: Plantilla comentada: comprobar backup, nombres lógicos, destino, espacio y autorización; puede modificar bases y archivos.\n\n-- Restaura la BD cambiando las rutas físicas de MDF y LDF.\n--\n-- Permite restaurar en discos distintos al origen.\n-- Ejemplo:\n--   Origen:  X:\\SQLData\\\n--   Destino: E:\\SQLData\\ y G:\\SQLLogs\\\n--\n-- IMPORTANTE:\n-- 1. Verificar nombres lógicos con RESTORE FILELISTONLY.\n-- 2. Verificar espacio disponible en destino.\n-- 3. Confirmar que la BD destino no exista para evitar\n--    cualquier riesgo de sobrescritura.\n-- 4. Confirmar permisos sobre las rutas.\n-- 5. Ejecutar exclusivamente en el servidor destino.\n-- 6. Comprobar que el backup sea recuperable.\n--\n-- Los nombres lógicos siguientes son ejemplos.\n--\n-- DESCOMENTAR ÚNICAMENTE CON AUTORIZACIÓN.\n\n/*\nRESTORE DATABASE [NombreDeBase]\nFROM DISK = '\\\\servidor\\backups\\NombreDeBase_FULL.bak'\nWITH\n    MOVE 'NombreDeBase'\n        TO 'E:\\SQLData\\NombreDeBase.mdf',\n\n    MOVE 'NombreDeBase_log'\n        TO 'G:\\SQLLogs\\NombreDeBase_log.ldf',\n\n    RECOVERY,\n    STATS = 5;\nGO\n*/\n"
+  },
+  {
+    "path": "scripts/sqlserver/storage/allocated_space_by_drive.sql",
+    "name": "Espacio asignado por unidad",
+    "engine": "SQL Server",
+    "category": "Storage",
+    "compatibility": "SQL Server 2014+ (orientativo; verificar version y entorno)",
+    "permissions": "Visibilidad de archivos en sys.master_files",
+    "risk": "READ_ONLY",
+    "description": "Agrupa el espacio asignado a archivos de datos y log por unidad.",
+    "tags": [
+      "disco",
+      "espacio",
+      "archivos",
+      "capacidad"
+    ],
+    "sql": "/*\n * Name: Espacio asignado por unidad\n * Engine: SQL Server\n * Category: Storage\n * Compatibility: SQL Server 2014+ (orientativo; verificar version y entorno)\n * Permissions: Visibilidad de archivos en sys.master_files\n * Risk: READ_ONLY\n * Description: Agrupa el espacio asignado a archivos de datos y log por unidad.\n * Tags: disco, espacio, archivos, capacidad\n */\n\n-- IMPORTANTE: El agrupamiento por los dos primeros caracteres no representa rutas UNC ni puntos de montaje.\n\n-- Agrupa los archivos de SQL Server por unidad.\n--\n-- Muestra:\n--  Cantidad de BD\n--  Cantidad de archivos\n--  GB asignados a datos\n--  GB asignados a logs\n--  Total asignado\n--\n-- El tamaño corresponde a archivos asignados,\n-- no necesariamente a datos realmente utilizados.\n\nSELECT\n    LEFT(physical_name, 2) AS Disco,\n\n    COUNT(DISTINCT database_id) AS Cantidad_BD,\n    COUNT(*) AS Cantidad_Archivos,\n\n    CAST(SUM(CASE WHEN type = 0\n        THEN CAST(size AS BIGINT) ELSE 0 END)\n        / 131072.0 AS DECIMAL(18,2)) AS Datos_GB,\n\n    CAST(SUM(CASE WHEN type = 1\n        THEN CAST(size AS BIGINT) ELSE 0 END)\n        / 131072.0 AS DECIMAL(18,2)) AS Logs_GB,\n\n    CAST(SUM(CAST(size AS BIGINT))\n        / 131072.0 AS DECIMAL(18,2)) AS Total_GB\n\nFROM sys.master_files\n\nGROUP BY LEFT(physical_name, 2)\nORDER BY Total_GB DESC;\nGO\n"
+  },
+  {
+    "path": "scripts/sqlserver/storage/database_file_inventory.sql",
+    "name": "Inventario de archivos de bases de datos",
+    "engine": "SQL Server",
+    "category": "Storage",
+    "compatibility": "SQL Server 2014+ (orientativo; verificar version y entorno)",
+    "permissions": "Visibilidad de las bases y sus archivos en sys.databases y sys.master_files",
+    "risk": "READ_ONLY",
+    "description": "Lista nombres, tipos, tamaños y rutas de archivos de bases.",
+    "tags": [
+      "mdf",
+      "ndf",
+      "ldf",
+      "inventario",
+      "rutas"
+    ],
+    "sql": "/*\n * Name: Inventario de archivos de bases de datos\n * Engine: SQL Server\n * Category: Storage\n * Compatibility: SQL Server 2014+ (orientativo; verificar version y entorno)\n * Permissions: Visibilidad de las bases y sus archivos en sys.databases y sys.master_files\n * Risk: READ_ONLY\n * Description: Lista nombres, tipos, tamaños y rutas de archivos de bases.\n * Tags: mdf, ndf, ldf, inventario, rutas\n */\n\n-- IMPORTANTE: Reemplazar NombreDeBase para priorizar una base. LEFT de la ruta no representa todos los volúmenes o rutas UNC.\n\n-- Muestra todos los archivos MDF, NDF y LDF.\n--\n-- Incluye:\n--  Base de datos\n--  Estado\n--  Nombre lógico\n--  Tipo de archivo\n--  Disco\n--  Ruta física\n--  Tamaño en GB\n--\n-- Prioriza NombreDeBase en el resultado.\n\nSELECT\n    DB_NAME(f.database_id) AS Base,\n    d.state_desc AS Estado,\n    f.name AS Nombre_Logico,\n    f.type_desc AS Tipo_Archivo,\n\n    LEFT(f.physical_name, 2) AS Disco,\n\n    f.physical_name AS Ruta_Completa,\n\n    CAST(f.size / 131072.0\n        AS DECIMAL(18,2)) AS Tamano_GB\n\nFROM sys.master_files f\n\nJOIN sys.databases d\n    ON f.database_id = d.database_id\n\nORDER BY\n    CASE WHEN d.name = 'NombreDeBase' THEN 0 ELSE 1 END,\n    d.name,\n    f.type,\n    f.file_id;\nGO\n"
+  },
+  {
+    "path": "scripts/sqlserver/storage/database_file_usage.sql",
+    "name": "Espacio asignado y utilizado por archivos",
+    "engine": "SQL Server",
+    "category": "Storage",
+    "compatibility": "SQL Server 2014+ (orientativo; verificar version y entorno)",
+    "permissions": "Acceso a la base, sus metadatos y permisos para DBCC SQLPERF; verificar segun version",
+    "risk": "READ_ONLY",
+    "description": "Espacio de archivos de datos y porcentaje usado del log.",
+    "tags": [
+      "archivos",
+      "espacio",
+      "log",
+      "datos",
+      "fileproperty"
+    ],
+    "sql": "/*\n * Name: Espacio asignado y utilizado por archivos\n * Engine: SQL Server\n * Category: Storage\n * Compatibility: SQL Server 2014+ (orientativo; verificar version y entorno)\n * Permissions: Acceso a la base, sus metadatos y permisos para DBCC SQLPERF; verificar segun version\n * Risk: READ_ONLY\n * Description: Espacio de archivos de datos y porcentaje usado del log.\n * Tags: archivos, espacio, log, datos, fileproperty\n */\n\n-- IMPORTANTE: Reemplazar NombreDeBase. DBCC SQLPERF(LOGSPACE) informa sobre múltiples bases.\n\n-- Muestra tamaño asignado y espacio utilizado de los\n-- archivos de datos de NombreDeBase.\n-- Para los logs, DBCC SQLPERF permite consultar el\n-- porcentaje utilizado del transaction log.\n-- FILEPROPERTY('SpaceUsed') no es una medida fiable\n-- del espacio utilizado dentro de archivos LOG.\n\nUSE NombreDeBase;\nGO\n\nSELECT\n    name,\n    type_desc,\n    physical_name,\n\n    CAST(size / 131072.0\n        AS DECIMAL(18,2)) AS Asignado_GB,\n\n    CAST(FILEPROPERTY(name, 'SpaceUsed') / 131072.0\n        AS DECIMAL(18,2)) AS Utilizado_GB,\n\n    CAST((size - FILEPROPERTY(name, 'SpaceUsed'))\n        / 131072.0 AS DECIMAL(18,2)) AS Libre_GB\n\nFROM sys.database_files\nWHERE type_desc = 'ROWS';\n\nDBCC SQLPERF(LOGSPACE);\nGO\n\nUSE master;\nGO\n"
+  },
+  {
+    "path": "scripts/sqlserver/storage/volume_capacity.sql",
+    "name": "Capacidad y espacio libre por volumen",
+    "engine": "SQL Server",
+    "category": "Storage",
+    "compatibility": "SQL Server 2014+ (orientativo; verificar version y entorno)",
+    "permissions": "Permisos de estado del servidor y acceso a metadatos; verificar segun version y entorno",
+    "risk": "READ_ONLY",
+    "description": "Consulta capacidad y espacio disponible en volúmenes con archivos SQL Server.",
+    "tags": [
+      "volumen",
+      "disco",
+      "espacio",
+      "libre",
+      "capacidad"
+    ],
+    "sql": "/*\n * Name: Capacidad y espacio libre por volumen\n * Engine: SQL Server\n * Category: Storage\n * Compatibility: SQL Server 2014+ (orientativo; verificar version y entorno)\n * Permissions: Permisos de estado del servidor y acceso a metadatos; verificar segun version y entorno\n * Risk: READ_ONLY\n * Description: Consulta capacidad y espacio disponible en volúmenes con archivos SQL Server.\n * Tags: volumen, disco, espacio, libre, capacidad\n */\n\n-- IMPORTANTE: No enumera necesariamente todos los volúmenes del sistema operativo.\n\n-- Muestra tamaño total, espacio usado, espacio libre\n-- y porcentaje libre de los volúmenes donde SQL Server\n-- tiene archivos.\n--\n-- No necesariamente muestra todos los discos del SO.\n-- No requiere permisos de escritura sobre los discos.\n\nSELECT DISTINCT\n    v.volume_mount_point AS Disco,\n    v.logical_volume_name AS Nombre_Volumen,\n    v.file_system_type AS FileSystem,\n\n    CAST(v.total_bytes / 1073741824.0\n        AS DECIMAL(18,2)) AS Total_GB,\n\n    CAST((v.total_bytes - v.available_bytes)\n        / 1073741824.0\n        AS DECIMAL(18,2)) AS Usado_GB,\n\n    CAST(v.available_bytes / 1073741824.0\n        AS DECIMAL(18,2)) AS Libre_GB,\n\n    CAST(v.available_bytes * 100.0 /\n        NULLIF(v.total_bytes, 0)\n        AS DECIMAL(10,2)) AS Libre_Pct\n\nFROM sys.master_files f\n\nCROSS APPLY sys.dm_os_volume_stats(\n    f.database_id,\n    f.file_id\n) v\n\nORDER BY Disco;\nGO\n"
   }
 ]

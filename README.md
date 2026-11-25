@@ -47,9 +47,21 @@ Los cambios aparecen despues de que finaliza el workflow en la pestana
 Guarda archivos `.sql` debajo de `scripts`, con la cabecera del ejemplo. Los
 campos `Name`, `Engine`, `Category`, `Compatibility`, `Permissions`, `Risk`,
 `Description` y `Tags` son obligatorios; `Tags` se separa con comas. Usa uno
-de los motores que muestra el portal y `READ_ONLY`, `MODIFIES_DATA` o
-`MODIFIES_STRUCTURE` para el riesgo. La clasificacion es informativa y debe ser
-revisada: incluso una consulta puede afectar el rendimiento.
+de los motores que muestra el portal y uno de estos riesgos:
+
+- `READ_ONLY`: consulta o inspeccion, sin cambios intencionales.
+- `TEMPDB_WRITE`: utiliza objetos temporales.
+- `BACKUP`: escribe archivos de respaldo.
+- `RESTORE`: restaura una base de datos.
+- `MODIFIES_DATA` o `MODIFIES_STRUCTURE`: modifica datos o estructuras.
+
+La clasificacion es informativa y debe ser revisada: incluso una consulta puede
+afectar el rendimiento. Los scripts de backup y restore se entregan comentados
+como plantillas: requieren adaptar parametros, revisar y autorizar su ejecucion.
+En los ejemplos, `NombreDeBase`, los nombres logicos y las rutas son marcadores,
+no valores listos para ejecutar. Las consultas de I/O con `X:\` requieren ajustar
+el filtro a la unidad deseada; los agrupamientos por letra no cubren todos los
+puntos de montaje ni rutas UNC.
 
 Ejecuta `npm run build` despues de cada cambio para actualizar
 `web/catalog.json`. El generador rechaza metadatos incompletos o invalidos.

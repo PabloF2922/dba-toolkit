@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { parseScript } from "../tools/build-catalog.mjs";
 import { matchesSearch } from "../web/search.js";
 
@@ -36,4 +37,27 @@ test("searches content, metadata and accent-insensitive terms", () => {
   assert.equal(matchesSearch(script, "reinicio uptime"), true);
   assert.equal(matchesSearch(script, "backups"), false);
   assert.equal(matchesSearch(script, ""), true);
+});
+
+test("accepts risk classifications for tempdb, backups and restore", () => {
+  for (const risk of ["TEMPDB_WRITE", "BACKUP", "RESTORE"]) {
+    assert.equal(parseScript(sql.replace("READ_ONLY", risk), "x.sql").risk, risk);
+  }
+});
+
+test("backup and restore templates remain commented", async () => {
+  const templates = [
+    ["../scripts/sqlserver/backups/manual_full_local.sql", "BACKUP", /BACKUP\s+DATABASE/i],
+    ["../scripts/sqlserver/backups/manual_full_network.sql", "BACKUP", /BACKUP\s+DATABASE/i],
+    ["../scripts/sqlserver/backups/manual_full_striped.sql", "BACKUP", /BACKUP\s+DATABASE/i],
+    ["../scripts/sqlserver/restore/backup_file_list.sql", "READ_ONLY", /RESTORE\s+FILELISTONLY/i],
+    ["../scripts/sqlserver/restore/restore_with_move.sql", "RESTORE", /RESTORE\s+DATABASE/i]
+  ];
+  for (const [path, risk, statement] of templates) {
+    const content = await readFile(new URL(path, import.meta.url), "utf8");
+    assert.equal(parseScript(content, path).risk, risk);
+    assert.match(content, statement);
+    const executable = content.replace(/\/\*[\s\S]*?\*\//g, "").replace(/--[^\r\n]*/g, "");
+    assert.doesNotMatch(executable, statement);
+  }
 });

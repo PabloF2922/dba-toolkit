@@ -3,7 +3,14 @@ import { matchesSearch } from "./search.js";
 const engines = ["Todos", "SQL Server", "Oracle", "MariaDB", "MongoDB", "PostgreSQL"];
 const $ = (selector) => document.querySelector(selector);
 const state = { scripts: [], engine: "Todos", category: "Todos", query: "", selected: null };
-const riskLabels = { READ_ONLY: "SOLO LECTURA", MODIFIES_DATA: "MODIFICA DATOS", MODIFIES_STRUCTURE: "MODIFICA ESTRUCTURA" };
+const riskLabels = {
+  READ_ONLY: "SOLO LECTURA",
+  TEMPDB_WRITE: "USA TEMPDB",
+  BACKUP: "GENERA BACKUP",
+  RESTORE: "RESTAURA BD",
+  MODIFIES_DATA: "MODIFICA DATOS",
+  MODIFIES_STRUCTURE: "MODIFICA ESTRUCTURA"
+};
 
 function button(text, className, onClick) {
   const element = document.createElement("button");
