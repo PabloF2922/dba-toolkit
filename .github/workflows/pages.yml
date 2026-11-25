@@ -3,6 +3,8 @@ name: Publicar GitHub Pages
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'portapapeles/**'
   workflow_dispatch:
 
 permissions:

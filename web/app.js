@@ -139,6 +139,9 @@ $("#copy").addEventListener("click", async () => {
 
 let clipboardEntries = [];
 let clipboardAvailable = false;
+let clipboardBusy = false;
+let clipboardToken = "";
+const clipboardTokenKey = "dba-toolkit.github-token.v1";
 const clipboardStatus = $("#clipboard-status");
 
 function renderClipboard() {
@@ -146,8 +149,11 @@ function renderClipboard() {
   list.replaceChildren();
   $("#clipboard-count").textContent = `${clipboardEntries.length}/${CLIPBOARD_LIMIT}`;
   $("#clipboard-empty").hidden = clipboardEntries.length !== 0 || !clipboardAvailable;
-  $("#clipboard-clear").disabled = !clipboardAvailable || clipboardEntries.length === 0;
-  clipboardEntries.forEach((text, index) => {
+  $("#clipboard-clear").disabled = clipboardBusy || !clipboardAvailable || clipboardEntries.length === 0;
+  $("#clipboard-refresh").disabled = clipboardBusy;
+  $("#clipboard-form button").disabled = clipboardBusy;
+  $("#clipboard-auth-status").textContent = clipboardToken ? "Token guardado en esta pestaña; se verificará al escribir." : "Lectura pública. Conectá un token para guardar o borrar.";
+  clipboardEntries.forEach((entry, index) => {
     const item = document.createElement("li");
     const heading = document.createElement("div");
     heading.className = "clipboard-item-heading";
@@ -158,59 +164,124 @@ function renderClipboard() {
     const copy = button("Copiar", "copy-button", async () => {
       try {
         if (!navigator.clipboard) throw new Error("Portapapeles no disponible");
-        await navigator.clipboard.writeText(text);
+        await navigator.clipboard.writeText(entry.text);
         clipboardStatus.textContent = "Texto copiado al portapapeles.";
       } catch {
         clipboardStatus.textContent = "No se pudo copiar. Seleccioná el texto y copialo manualmente.";
       }
     });
-    const remove = button("Eliminar", "text-button", () => {
-      updateClipboard(clipboardEntries.filter((_, entryIndex) => entryIndex !== index), "Texto eliminado.");
+    const remove = button("Eliminar", "text-button", async () => {
+      await updateClipboard((entries) => {
+        if (!entries.some((item) => item.id === entry.id)) throw new Error("Este texto ya no está disponible. Actualizá la lista.");
+        return entries.filter((item) => item.id !== entry.id);
+      }, "Texto eliminado de la lista actual. Permanece en el historial público.");
     });
+    remove.disabled = clipboardBusy;
     remove.setAttribute("aria-label", `Eliminar texto ${index + 1}`);
     copy.setAttribute("aria-label", `Copiar texto ${index + 1}`);
     actions.append(copy, remove);
     heading.append(title, actions);
     const preview = document.createElement("pre");
     const code = document.createElement("code");
-    code.textContent = text;
+    code.textContent = entry.text;
     preview.append(code);
     item.append(heading, preview);
     list.append(item);
   });
 }
 
-function updateClipboard(entries, message) {
-  try {
-    saveEntries(sessionStorage, entries);
-    clipboardEntries = entries;
-    clipboardStatus.textContent = message;
-    renderClipboard();
-    return true;
-  } catch {
-    clipboardStatus.textContent = "No se pudo guardar en esta pestaña. Revisá el almacenamiento del navegador y volvé a intentar.";
+async function updateClipboard(transform, message) {
+  if (clipboardBusy) {
+    clipboardStatus.textContent = "Hay una operación en curso. El texto queda en el campo; volvé a intentar.";
     return false;
+  }
+  if (!clipboardToken) {
+    clipboardStatus.textContent = "Conectá un token de GitHub para guardar o borrar. El texto queda en el campo.";
+    return false;
+  }
+  clipboardBusy = true;
+  const token = clipboardToken;
+  renderClipboard();
+  clipboardStatus.textContent = "Guardando en GitHub...";
+  try {
+    const current = await readEntries(fetch, token);
+    const entries = transform(current.entries);
+    await saveEntries(token, current.sha, entries);
+    clipboardEntries = entries;
+    clipboardAvailable = true;
+    clipboardStatus.textContent = message;
+    return true;
+  } catch (error) {
+    clipboardStatus.textContent = `No se pudo guardar: ${error.message}`;
+    return false;
+  } finally {
+    clipboardBusy = false;
+    renderClipboard();
   }
 }
 
-function addClipboardText(text) {
+async function addClipboardText(text) {
+  const saved = await updateClipboard(
+    (entries) => addEntry(entries, text, crypto.randomUUID()),
+    "Texto guardado públicamente en GitHub."
+  );
+  if (saved && $("#clipboard-input").value === text) $("#clipboard-input").value = "";
+}
+
+async function refreshClipboard() {
+  if (clipboardBusy) return;
+  clipboardBusy = true;
+  renderClipboard();
+  clipboardStatus.textContent = "Cargando desde GitHub...";
   try {
-    return updateClipboard(addEntry(clipboardEntries, text), "Texto guardado en esta pestaña.");
+    const current = await readEntries(fetch);
+    clipboardEntries = current.entries;
+    clipboardAvailable = true;
+    clipboardStatus.textContent = "Lista actualizada desde GitHub.";
   } catch (error) {
-    clipboardStatus.textContent = error.message;
-    return false;
+    clipboardStatus.textContent = `No se pudo cargar el portapapeles: ${error.message}`;
+  } finally {
+    clipboardBusy = false;
+    renderClipboard();
   }
 }
 
 try {
-  clipboardEntries = readEntries(sessionStorage);
-  clipboardAvailable = true;
+  clipboardToken = sessionStorage.getItem(clipboardTokenKey) || "";
 } catch {
-  clipboardStatus.textContent = "No se pudo abrir el portapapeles temporal. Revisá el almacenamiento del navegador.";
-  $("#clipboard-input").disabled = true;
-  $("#clipboard-form button").disabled = true;
+  clipboardStatus.textContent = "El navegador no permite acceder al almacenamiento de sesión para el token.";
 }
 renderClipboard();
+refreshClipboard();
+
+$("#clipboard-token-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const token = $("#clipboard-token").value.trim();
+  if (!token) {
+    clipboardStatus.textContent = "Ingresá un token antes de conectar.";
+    return;
+  }
+  try {
+    sessionStorage.setItem(clipboardTokenKey, token);
+    clipboardToken = token;
+    $("#clipboard-token").value = "";
+    clipboardStatus.textContent = "Token guardado en esta pestaña. GitHub lo verificará al guardar.";
+    renderClipboard();
+  } catch {
+    clipboardStatus.textContent = "No se pudo guardar el token en la sesión del navegador.";
+  }
+});
+$("#clipboard-disconnect").addEventListener("click", () => {
+  try {
+    sessionStorage.removeItem(clipboardTokenKey);
+    clipboardToken = "";
+    $("#clipboard-token").value = "";
+    clipboardStatus.textContent = "Token eliminado de esta pestaña.";
+    renderClipboard();
+  } catch {
+    clipboardStatus.textContent = "No se pudo eliminar el token de la sesión del navegador.";
+  }
+});
 
 $("#clipboard-input").addEventListener("paste", (event) => {
   if (!event.clipboardData) {
@@ -222,13 +293,17 @@ $("#clipboard-input").addEventListener("paste", (event) => {
     clipboardStatus.textContent = "El contenido pegado no contiene texto.";
     return;
   }
-  if (addClipboardText(text)) event.preventDefault();
+  event.preventDefault();
+  const input = $("#clipboard-input");
+  input.setRangeText(text, input.selectionStart, input.selectionEnd, "end");
+  addClipboardText(input.value);
 });
 $("#clipboard-form").addEventListener("submit", (event) => {
   event.preventDefault();
-  if (addClipboardText($("#clipboard-input").value)) $("#clipboard-input").value = "";
+  addClipboardText($("#clipboard-input").value);
 });
-$("#clipboard-clear").addEventListener("click", () => updateClipboard([], "Portapapeles temporal borrado."));
+$("#clipboard-clear").addEventListener("click", () => updateClipboard(() => [], "Lista borrada. Los textos permanecen en el historial público."));
+$("#clipboard-refresh").addEventListener("click", refreshClipboard);
 
 try {
   const response = await fetch("./catalog.json", { cache: "no-cache" });

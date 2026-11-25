@@ -48,24 +48,33 @@ portapapeles temporal. El despliegue versiona JavaScript y CSS para que, al
 cargar la nueva pagina, el navegador solicite sus archivos correspondientes.
 Una pestaña que ya estaba abierta no se actualiza sola.
 
-## Portapapeles temporal
+## Portapapeles compartido
 
-En la seccion **Portapapeles**, pega texto para agregarlo automaticamente o
-escribelo y selecciona **Guardar texto**. Conserva los cinco mas recientes:
-puedes copiarlos, eliminarlos individualmente o borrar todo. Los scripts
-copiados desde la biblioteca no se agregan automaticamente.
+La seccion **Portapapeles** guarda en `portapapeles/recientes.json` los cinco
+textos mas recientes. Se puede consultar desde cualquier equipo sin iniciar
+sesion; usa **Actualizar** para ver cambios hechos desde otro navegador. Pegar
+en el campo guarda el texto automaticamente; tambien puedes escribirlo y
+seleccionar **Guardar texto**. Los scripts copiados desde la biblioteca no se
+agregan automaticamente. El tamaño total del archivo se limita a 512 KiB.
 
-Los textos se almacenan en `sessionStorage` del navegador para esa pestaña:
-normalmente sobreviven a una recarga y se eliminan al cerrar la pestaña, aunque
-algunos navegadores pueden restaurar sesiones o copiar su estado al duplicar
-una pestaña. No se guardan en la biblioteca ni se envian al repositorio.
-No pegues credenciales ni datos sensibles, especialmente en equipos compartidos.
+**Los textos y su historial son publicos.** Al borrar o reemplazar un texto,
+Git conserva versiones anteriores. No hay vencimiento ni borrado automatico
+real. No incluyas credenciales, datos sensibles o material cuya publicacion
+no este autorizada.
 
-Para acceder a textos desde otros equipos, usa el
-[repositorio privado de portapapeles](https://github.com/PabloF2922/dba-toolkit-portapapeles)
-iniciando sesion en GitHub. Se edita manualmente y no sincroniza con el
-portapapeles de la web. Git guarda versiones anteriores incluso si se borra
-el texto; no tiene caducidad automatica y no debe contener secretos.
+Para guardar o borrar, crea en GitHub un fine-grained personal access token
+con acceso solo a este repositorio y permiso **Contents: Read and write**.
+En la seccion **Conectar token**, ingresalo en cada navegador donde quieras
+escribir. Este permiso permite modificar **todo** el contenido del repositorio,
+no solo el portapapeles. La web envia el token a la API de GitHub y lo guarda
+en `sessionStorage` de la pestaña; usa **Desconectar** al terminar.
+El navegador podria restaurar o duplicar la sesion, por lo que no debe usarse
+en equipos no confiables. No compartas el token ni lo agregues al repositorio.
+
+Si dos equipos guardan simultaneamente, GitHub puede rechazar uno de los
+cambios; actualiza la lista y vuelve a intentar. Cada cambio crea un commit,
+pero los commits que solo modifican `portapapeles/` no despliegan la web. El
+portapapeles local de versiones anteriores no se migra automaticamente.
 
 ## Agregar scripts
 
