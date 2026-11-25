@@ -55,6 +55,12 @@ algunos navegadores pueden restaurar sesiones o copiar su estado al duplicar
 una pestaña. No se guardan en la biblioteca ni se envian al repositorio.
 No pegues credenciales ni datos sensibles, especialmente en equipos compartidos.
 
+Para acceder a textos desde otros equipos, usa el
+[repositorio privado de portapapeles](https://github.com/PabloF2922/dba-toolkit-portapapeles)
+iniciando sesion en GitHub. Se edita manualmente y no sincroniza con el
+portapapeles de la web. Git guarda versiones anteriores incluso si se borra
+el texto; no tiene caducidad automatica y no debe contener secretos.
+
 ## Agregar scripts
 
 Guarda archivos `.sql` debajo de `scripts`, con la cabecera del ejemplo. Los
