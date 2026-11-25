@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { addEntry, readEntries, saveEntries } from "../web/clipboard-store.js";
+import { addEntry, readEntries, saveEntries, validateToken } from "../web/clipboard-store.js";
 
-function response(data, status = 200) {
-  return { ok: status >= 200 && status < 300, status, json: async () => data };
+function response(data, status = 200, headers = {}) {
+  return { ok: status >= 200 && status < 300, status, headers: new Headers(headers), json: async () => data };
 }
 function file(entries) {
   return { sha: "abc", encoding: "base64", content: Buffer.from(JSON.stringify(entries)).toString("base64") };
@@ -44,7 +44,22 @@ test("writes authenticated UTF-8 payload with expected SHA", async () => {
 
 test("surfaces API conflicts, permission errors, and malformed content", async () => {
   await assert.rejects(saveEntries("token", "abc", [], async () => response({}, 409)), /otro equipo/);
-  await assert.rejects(saveEntries("token", "abc", [], async () => response({}, 403)), /permisos/);
+  await assert.rejects(saveEntries("token", "abc", [], async () => response({}, 401)), /HTTP 401.*venció/);
+  await assert.rejects(saveEntries("token", "abc", [], async () => response({}, 403)), /HTTP 403.*Contents: Read and write/);
+  await assert.rejects(saveEntries("token", "abc", [], async () => response({}, 403, { "x-ratelimit-remaining": "0" })), /límite de solicitudes/);
+  await assert.rejects(saveEntries("token", "abc", [], async () => response({ message: "You have exceeded a secondary rate limit" }, 403)), /límite de solicitudes/);
+  await assert.rejects(saveEntries("token", "abc", [], async () => response({}, 429)), /límite de solicitudes/);
   await assert.rejects(readEntries(async () => response(file([{ id: "1", text: "" }]))), /formato inválido/);
   await assert.rejects(readEntries(async () => response({}, 404)), /HTTP 404/);
+});
+
+test("validates the token with GitHub without claiming write access", async () => {
+  const login = await validateToken("example-token", async (url, options) => {
+    assert.equal(url, "https://api.github.com/user");
+    assert.equal(options.headers.Authorization, "Bearer example-token");
+    return response({ login: "PabloF2922" });
+  });
+  assert.equal(login, "PabloF2922");
+  await assert.rejects(validateToken("bad", async () => response({}, 401)), /HTTP 401/);
+  await assert.rejects(validateToken("token", async () => response({})), /respuesta de usuario inválida/);
 });

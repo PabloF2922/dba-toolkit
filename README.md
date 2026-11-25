@@ -70,6 +70,10 @@ no solo el portapapeles. La web envia el token a la API de GitHub y lo guarda
 en `sessionStorage` de la pestaña; usa **Desconectar** al terminar.
 El navegador podria restaurar o duplicar la sesion, por lo que no debe usarse
 en equipos no confiables. No compartas el token ni lo agregues al repositorio.
+Al conectar se valida que GitHub reconozca el token; el permiso para escribir se
+verifica al guardar. Un error HTTP 401 indica un token invalido, vencido o
+revocado. Ante HTTP 403, verifica el propietario, el repositorio seleccionado
+y el permiso Contents; un limite de solicitudes se indica por separado.
 
 Si dos equipos guardan simultaneamente, GitHub puede rechazar uno de los
 cambios; actualiza la lista y vuelve a intentar. Cada cambio crea un commit,

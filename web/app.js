@@ -1,5 +1,5 @@
 import { matchesSearch } from "./search.js";
-import { addEntry, CLIPBOARD_LIMIT, readEntries, saveEntries } from "./clipboard-store.js";
+import { addEntry, CLIPBOARD_LIMIT, readEntries, saveEntries, validateToken } from "./clipboard-store.js";
 
 const engines = ["Todos", "SQL Server", "Oracle", "MariaDB", "MongoDB", "PostgreSQL"];
 const $ = (selector) => document.querySelector(selector);
@@ -254,21 +254,27 @@ try {
 renderClipboard();
 refreshClipboard();
 
-$("#clipboard-token-form").addEventListener("submit", (event) => {
+$("#clipboard-token-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const token = $("#clipboard-token").value.trim();
   if (!token) {
     clipboardStatus.textContent = "Ingresá un token antes de conectar.";
     return;
   }
+  const connect = $("#clipboard-token-form button[type=submit]");
+  connect.disabled = true;
+  clipboardStatus.textContent = "Verificando el token con GitHub...";
   try {
+    const login = await validateToken(token);
     sessionStorage.setItem(clipboardTokenKey, token);
     clipboardToken = token;
     $("#clipboard-token").value = "";
-    clipboardStatus.textContent = "Token guardado en esta pestaña. GitHub lo verificará al guardar.";
+    clipboardStatus.textContent = `Token válido para ${login}. El permiso de escritura se verificará al guardar.`;
     renderClipboard();
-  } catch {
-    clipboardStatus.textContent = "No se pudo guardar el token en la sesión del navegador.";
+  } catch (error) {
+    clipboardStatus.textContent = `No se pudo conectar: ${error.message}`;
+  } finally {
+    connect.disabled = false;
   }
 });
 $("#clipboard-disconnect").addEventListener("click", () => {

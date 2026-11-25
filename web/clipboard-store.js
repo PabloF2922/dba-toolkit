@@ -13,8 +13,8 @@ function encodeBase64(value) {
   return btoa(binary);
 }
 
-async function request(fetcher, options = {}) {
-  const response = await fetcher(endpoint, {
+async function request(fetcher, url, options = {}) {
+  const response = await fetcher(url, {
     cache: "no-store",
     ...options,
     headers: {
@@ -24,16 +24,40 @@ async function request(fetcher, options = {}) {
     }
   });
   if (!response.ok) {
-    if (response.status === 409) throw new Error("El portapapeles cambió en otro equipo. Actualizá y volvé a intentar.");
-    if (response.status === 401 || response.status === 403) throw new Error("GitHub rechazó la operación. Revisá el token, sus permisos o el límite de solicitudes.");
+    if (response.status === 409) throw new Error("GitHub HTTP 409: el portapapeles cambió en otro equipo. Actualizá y volvé a intentar.");
+    if (response.status === 401) throw new Error("GitHub HTTP 401: el token no es válido, venció o fue revocado. Creá o conectá otro token.");
+    if (response.status === 403 || response.status === 429) {
+      let detail = {};
+      try {
+        detail = await response.json();
+      } catch (error) {
+        if (!(error instanceof SyntaxError)) throw error;
+      }
+      const message = typeof detail?.message === "string" ? detail.message.toLowerCase() : "";
+      if (response.status === 429 || response.headers.get("x-ratelimit-remaining") === "0" ||
+          response.headers.get("retry-after") !== null || message.includes("rate limit")) {
+        throw new Error(`GitHub HTTP ${response.status}: se alcanzó un límite de solicitudes. Esperá antes de volver a intentar.`);
+      }
+      throw new Error("GitHub HTTP 403: acceso denegado. Revisá que el token tenga acceso a PabloF2922/dba-toolkit y permiso Contents: Read and write.");
+    }
+    if (response.status === 404) throw new Error("GitHub HTTP 404: no se encontró el archivo o el token no tiene acceso al repositorio seleccionado.");
     throw new Error(`GitHub respondió HTTP ${response.status}.`);
   }
   return response.json();
 }
 
+export async function validateToken(token, fetcher = fetch) {
+  if (!token) throw new Error("Ingresá un token antes de conectar.");
+  const user = await request(fetcher, "https://api.github.com/user", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  if (typeof user.login !== "string" || !user.login) throw new Error("GitHub devolvió una respuesta de usuario inválida.");
+  return user.login;
+}
+
 export async function readEntries(fetcher = fetch, token = "") {
   const headers = token ? { Authorization: `Bearer ${token}` } : {};
-  const file = await request(fetcher, { headers });
+  const file = await request(fetcher, endpoint, { headers });
   if (!file.sha || file.encoding !== "base64" || typeof file.content !== "string") {
     throw new Error("GitHub devolvió un archivo de portapapeles inválido.");
   }
@@ -58,7 +82,7 @@ export async function saveEntries(token, sha, entries, fetcher = fetch) {
   if (new TextEncoder().encode(content).length > 512 * 1024) {
     throw new Error("Los cinco textos superan el límite conjunto de 512 KiB.");
   }
-  await request(fetcher, {
+  await request(fetcher, endpoint, {
     method: "PUT",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({
