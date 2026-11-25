@@ -3,6 +3,8 @@
 Biblioteca personal de scripts DBA, disponible localmente o como sitio publico
 en GitHub Pages, sin conexion a bases de datos ni servicios de IA.
 
+**Abrir la web:** [DBA Toolkit](https://pablof2922.github.io/dba-toolkit/)
+
 ## Plan
 
 1. **Biblioteca local:** catalogo navegable, filtros, busqueda y copia del SQL.
