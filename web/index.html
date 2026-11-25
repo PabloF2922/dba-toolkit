@@ -17,6 +17,7 @@
       </a>
       <div class="sidebar-label">BIBLIOTECA</div>
       <div class="sidebar-active"><span aria-hidden="true">▦</span> Explorar scripts</div>
+      <a class="sidebar-link" href="#clipboard"><span aria-hidden="true">▤</span> Portapapeles</a>
       <div class="sidebar-info">
         <span class="status-dot"></span>
         <div><strong>Tu biblioteca DBA</strong><p>Tu conocimiento DBA, organizado en un solo lugar.</p></div>
@@ -25,7 +26,7 @@
     </aside>
 
     <main>
-      <header class="topbar"><span>Biblioteca <span class="slash">/</span> <strong>Scripts</strong></span><span class="local-badge"><span class="status-dot"></span> BIBLIOTECA WEB</span></header>
+      <header class="topbar"><span>Biblioteca <span class="slash">/</span> <strong>Scripts</strong></span><a class="clipboard-shortcut" href="#clipboard">Portapapeles ↓</a></header>
       <div class="content">
         <div class="heading">
           <div><div class="eyebrow"><span></span> TU BASE DE CONOCIMIENTO</div><h1>Tu biblioteca DBA<span>.</span></h1><p>Todos tus scripts, organizados y listos cuando los necesites.</p></div>
@@ -46,6 +47,20 @@
               <div id="empty" class="empty" hidden><div>⌕</div><strong>No encontramos scripts</strong><p>Probá con otra búsqueda o cambiá los filtros.</p></div>
             </div>
           </div>
+        </section>
+        <section id="clipboard" class="clipboard-section" aria-labelledby="clipboard-title">
+          <div class="section-top"><div><div class="eyebrow"><span></span> TU ESPACIO TEMPORAL</div><h2 id="clipboard-title">Portapapeles</h2></div><span class="section-note">HASTA 5 TEXTOS</span></div>
+          <p class="clipboard-intro">Pegá un texto en el campo y se agregará automáticamente. También podés escribirlo y guardarlo. No se agrega a la biblioteca.</p>
+          <p class="clipboard-privacy">Se guarda en esta pestaña, no en GitHub. Evitá pegar contraseñas o datos sensibles, especialmente en equipos compartidos.</p>
+          <form id="clipboard-form">
+            <label for="clipboard-input">Texto para guardar temporalmente</label>
+            <textarea id="clipboard-input" rows="4" placeholder="Pegá o escribí texto aquí..." spellcheck="false"></textarea>
+            <div class="clipboard-form-actions"><span>Al superar cinco, se elimina el más antiguo.</span><button type="submit" class="copy-button">Guardar texto</button></div>
+          </form>
+          <div class="clipboard-list-heading"><h3>Textos recientes <span id="clipboard-count">0/5</span></h3><button id="clipboard-clear" type="button" class="text-button">Borrar todo</button></div>
+          <p id="clipboard-status" class="clipboard-status" role="status" aria-live="polite"></p>
+          <p id="clipboard-empty" class="clipboard-empty">Todavía no hay textos guardados en esta pestaña.</p>
+          <ol id="clipboard-list" class="clipboard-list"></ol>
         </section>
         <section class="assistant-note"><div class="assistant-icon">✦</div><div><div class="assistant-title">DBA Assistant <span>PRÓXIMAMENTE</span></div><p>Más adelante vas a poder consultar tu biblioteca en lenguaje natural. Por ahora, usá la búsqueda para encontrar scripts existentes.</p></div></section>
         <footer>DBA TOOLKIT <span>·</span> TU CONOCIMIENTO, SIEMPRE A MANO <span class="footer-end">VERSIÓN 0.1</span></footer>

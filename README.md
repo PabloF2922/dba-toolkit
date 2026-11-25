@@ -42,6 +42,19 @@ Los cambios aparecen despues de que finaliza el workflow en la pestana
 **Actions**. Para reproducir localmente los datos publicados, ejecuta
 `npm run build` despues de modificar scripts.
 
+## Portapapeles temporal
+
+En la seccion **Portapapeles**, pega texto para agregarlo automaticamente o
+escribelo y selecciona **Guardar texto**. Conserva los cinco mas recientes:
+puedes copiarlos, eliminarlos individualmente o borrar todo. Los scripts
+copiados desde la biblioteca no se agregan automaticamente.
+
+Los textos se almacenan en `sessionStorage` del navegador para esa pestaña:
+normalmente sobreviven a una recarga y se eliminan al cerrar la pestaña, aunque
+algunos navegadores pueden restaurar sesiones o copiar su estado al duplicar
+una pestaña. No se guardan en la biblioteca ni se envian al repositorio.
+No pegues credenciales ni datos sensibles, especialmente en equipos compartidos.
+
 ## Agregar scripts
 
 Guarda archivos `.sql` debajo de `scripts`, con la cabecera del ejemplo. Los

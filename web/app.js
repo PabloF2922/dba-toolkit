@@ -1,4 +1,5 @@
 import { matchesSearch } from "./search.js";
+import { addEntry, CLIPBOARD_LIMIT, readEntries, saveEntries } from "./clipboard-store.js";
 
 const engines = ["Todos", "SQL Server", "Oracle", "MariaDB", "MongoDB", "PostgreSQL"];
 const $ = (selector) => document.querySelector(selector);
@@ -135,6 +136,99 @@ $("#copy").addEventListener("click", async () => {
     $("#copy-status").textContent = "No se pudo copiar. Seleccioná el SQL y copialo manualmente.";
   }
 });
+
+let clipboardEntries = [];
+let clipboardAvailable = false;
+const clipboardStatus = $("#clipboard-status");
+
+function renderClipboard() {
+  const list = $("#clipboard-list");
+  list.replaceChildren();
+  $("#clipboard-count").textContent = `${clipboardEntries.length}/${CLIPBOARD_LIMIT}`;
+  $("#clipboard-empty").hidden = clipboardEntries.length !== 0 || !clipboardAvailable;
+  $("#clipboard-clear").disabled = !clipboardAvailable || clipboardEntries.length === 0;
+  clipboardEntries.forEach((text, index) => {
+    const item = document.createElement("li");
+    const heading = document.createElement("div");
+    heading.className = "clipboard-item-heading";
+    const title = document.createElement("strong");
+    title.textContent = index === 0 ? "Más reciente" : `Texto ${index + 1}`;
+    const actions = document.createElement("div");
+    actions.className = "clipboard-item-actions";
+    const copy = button("Copiar", "copy-button", async () => {
+      try {
+        if (!navigator.clipboard) throw new Error("Portapapeles no disponible");
+        await navigator.clipboard.writeText(text);
+        clipboardStatus.textContent = "Texto copiado al portapapeles.";
+      } catch {
+        clipboardStatus.textContent = "No se pudo copiar. Seleccioná el texto y copialo manualmente.";
+      }
+    });
+    const remove = button("Eliminar", "text-button", () => {
+      updateClipboard(clipboardEntries.filter((_, entryIndex) => entryIndex !== index), "Texto eliminado.");
+    });
+    remove.setAttribute("aria-label", `Eliminar texto ${index + 1}`);
+    copy.setAttribute("aria-label", `Copiar texto ${index + 1}`);
+    actions.append(copy, remove);
+    heading.append(title, actions);
+    const preview = document.createElement("pre");
+    const code = document.createElement("code");
+    code.textContent = text;
+    preview.append(code);
+    item.append(heading, preview);
+    list.append(item);
+  });
+}
+
+function updateClipboard(entries, message) {
+  try {
+    saveEntries(sessionStorage, entries);
+    clipboardEntries = entries;
+    clipboardStatus.textContent = message;
+    renderClipboard();
+    return true;
+  } catch {
+    clipboardStatus.textContent = "No se pudo guardar en esta pestaña. Revisá el almacenamiento del navegador y volvé a intentar.";
+    return false;
+  }
+}
+
+function addClipboardText(text) {
+  try {
+    return updateClipboard(addEntry(clipboardEntries, text), "Texto guardado en esta pestaña.");
+  } catch (error) {
+    clipboardStatus.textContent = error.message;
+    return false;
+  }
+}
+
+try {
+  clipboardEntries = readEntries(sessionStorage);
+  clipboardAvailable = true;
+} catch {
+  clipboardStatus.textContent = "No se pudo abrir el portapapeles temporal. Revisá el almacenamiento del navegador.";
+  $("#clipboard-input").disabled = true;
+  $("#clipboard-form button").disabled = true;
+}
+renderClipboard();
+
+$("#clipboard-input").addEventListener("paste", (event) => {
+  if (!event.clipboardData) {
+    clipboardStatus.textContent = "No se pudo leer el texto pegado. Usá el botón Guardar texto.";
+    return;
+  }
+  const text = event.clipboardData.getData("text/plain");
+  if (!text) {
+    clipboardStatus.textContent = "El contenido pegado no contiene texto.";
+    return;
+  }
+  if (addClipboardText(text)) event.preventDefault();
+});
+$("#clipboard-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (addClipboardText($("#clipboard-input").value)) $("#clipboard-input").value = "";
+});
+$("#clipboard-clear").addEventListener("click", () => updateClipboard([], "Portapapeles temporal borrado."));
 
 try {
   const response = await fetch("./catalog.json", { cache: "no-cache" });
