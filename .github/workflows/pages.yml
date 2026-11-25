@@ -26,10 +26,12 @@ jobs:
         run: npm test
       - name: Generar catalogo
         run: npm run build
+      - name: Preparar archivos versionados
+        run: node tools/build-site.mjs "$RUNNER_TEMP/dba-toolkit-site"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
-          path: web
+          path: ${{ runner.temp }}/dba-toolkit-site
 
   deploy:
     needs: build

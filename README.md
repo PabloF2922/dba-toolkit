@@ -42,6 +42,12 @@ Los cambios aparecen despues de que finaliza el workflow en la pestana
 **Actions**. Para reproducir localmente los datos publicados, ejecuta
 `npm run build` despues de modificar scripts.
 
+GitHub Pages puede conservar la pagina en cache unos minutos. Si una pestaña
+no muestra una actualizacion, recarga con **Ctrl+F5**; esto no borra el
+portapapeles temporal. El despliegue versiona JavaScript y CSS para que, al
+cargar la nueva pagina, el navegador solicite sus archivos correspondientes.
+Una pestaña que ya estaba abierta no se actualiza sola.
+
 ## Portapapeles temporal
 
 En la seccion **Portapapeles**, pega texto para agregarlo automaticamente o
