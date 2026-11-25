@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>DBA Toolkit | Biblioteca personal</title>
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <a class="brand" href="./" aria-label="DBA Toolkit, inicio">
+        <span class="brand-icon" aria-hidden="true">▰</span>
+        <span>DBA <strong>Toolkit</strong><small>PERSONAL KNOWLEDGE BASE</small></span>
+      </a>
+      <div class="sidebar-label">BIBLIOTECA</div>
+      <div class="sidebar-active"><span aria-hidden="true">▦</span> Explorar scripts</div>
+      <div class="sidebar-info">
+        <span class="status-dot"></span>
+        <div><strong>Tu biblioteca DBA</strong><p>Tu conocimiento DBA, organizado en un solo lugar.</p></div>
+      </div>
+      <div class="sidebar-footer">HECHO PARA DBAs <span>✦</span></div>
+    </aside>
+
+    <main>
+      <header class="topbar"><span>Biblioteca <span class="slash">/</span> <strong>Scripts</strong></span><span class="local-badge"><span class="status-dot"></span> BIBLIOTECA WEB</span></header>
+      <div class="content">
+        <div class="heading">
+          <div><div class="eyebrow"><span></span> TU BASE DE CONOCIMIENTO</div><h1>Tu biblioteca DBA<span>.</span></h1><p>Todos tus scripts, organizados y listos cuando los necesites.</p></div>
+          <div class="count-box"><span id="total-count">—</span><small>SCRIPTS EN<br>LA BIBLIOTECA</small></div>
+        </div>
+
+        <div class="search-wrap"><span aria-hidden="true">⌕</span><label class="sr-only" for="search">Buscar scripts</label><input id="search" type="search" placeholder="Buscar por nombre, contenido o etiqueta..." autocomplete="off"><span class="search-hint">BUSCAR</span></div>
+
+        <section class="library" aria-label="Biblioteca de scripts">
+          <div class="section-top"><div><div class="eyebrow"><span></span> EXPLORAR</div><h2>Encontrá tu script</h2></div><span class="section-note">FILTRÁ POR MOTOR Y CATEGORÍA</span></div>
+          <div class="engines" id="engines" aria-label="Filtrar por motor"></div>
+          <div class="library-grid">
+            <div class="categories"><div class="filter-label">CATEGORÍAS</div><div id="categories"></div></div>
+            <div class="results">
+              <div class="results-header"><span id="result-count" aria-live="polite"></span><span>CATÁLOGO DE SCRIPTS</span></div>
+              <div id="error" class="notice error" role="alert" hidden></div>
+              <div id="script-list" class="script-list"></div>
+              <div id="empty" class="empty" hidden><div>⌕</div><strong>No encontramos scripts</strong><p>Probá con otra búsqueda o cambiá los filtros.</p></div>
+            </div>
+          </div>
+        </section>
+        <section class="assistant-note"><div class="assistant-icon">✦</div><div><div class="assistant-title">DBA Assistant <span>PRÓXIMAMENTE</span></div><p>Más adelante vas a poder consultar tu biblioteca en lenguaje natural. Por ahora, usá la búsqueda para encontrar scripts existentes.</p></div></section>
+        <footer>DBA TOOLKIT <span>·</span> TU CONOCIMIENTO, SIEMPRE A MANO <span class="footer-end">VERSIÓN 0.1</span></footer>
+      </div>
+    </main>
+  </div>
+  <dialog id="detail">
+    <div class="dialog-header"><div><div class="eyebrow"><span></span> DETALLE DEL SCRIPT</div><h2 id="detail-name"></h2></div><button id="close" class="icon-button" aria-label="Cerrar detalle">✕</button></div>
+    <p id="detail-path" class="file-path"></p>
+    <p id="detail-description" class="detail-description"></p>
+    <div id="detail-meta" class="detail-meta"></div>
+    <div class="code-heading"><span>SQL ORIGINAL</span><button id="copy" class="copy-button">Copiar SQL</button></div>
+    <pre><code id="detail-sql"></code></pre>
+    <p id="copy-status" class="copy-status" role="status"></p>
+    <div class="warning">Revisá permisos, compatibilidad e impacto antes de ejecutar. Los ejemplos no están validados en tu entorno.</div>
+  </dialog>
+</body>
+</html>
