@@ -1,5 +1,5 @@
 export const CLIPBOARD_LIMIT = 5;
-const endpoint = "https://api.github.com/repos/PabloF2922/dba-toolkit/contents/portapapeles/recientes.json";
+const endpoint = "https://api.github.com/repos/PabloF2922/dba-toolkit-portapapeles/contents/portapapeles/recientes.json";
 
 function decodeBase64(value) {
   const bytes = Uint8Array.from(atob(value.replace(/\s/g, "")), (character) => character.charCodeAt(0));
@@ -38,7 +38,7 @@ async function request(fetcher, url, options = {}) {
           response.headers.get("retry-after") !== null || message.includes("rate limit")) {
         throw new Error(`GitHub HTTP ${response.status}: se alcanzó un límite de solicitudes. Esperá antes de volver a intentar.`);
       }
-      throw new Error("GitHub HTTP 403: acceso denegado. Revisá que el token tenga acceso a PabloF2922/dba-toolkit y permiso Contents: Read and write.");
+      throw new Error("GitHub HTTP 403: acceso denegado. Revisá que el token tenga acceso a PabloF2922/dba-toolkit-portapapeles y permiso Contents: Read and write.");
     }
     if (response.status === 404) throw new Error("GitHub HTTP 404: no se encontró el archivo o el token no tiene acceso al repositorio seleccionado.");
     throw new Error(`GitHub respondió HTTP ${response.status}.`);

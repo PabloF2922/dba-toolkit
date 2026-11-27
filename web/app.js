@@ -4,6 +4,7 @@ import { addEntry, CLIPBOARD_LIMIT, readEntries, saveEntries, validateToken } fr
 const engines = ["Todos", "SQL Server", "Oracle", "MariaDB", "MongoDB", "PostgreSQL"];
 const $ = (selector) => document.querySelector(selector);
 const state = { scripts: [], engine: "Todos", category: "Todos", query: "", selected: null };
+const chatMessages = [];
 const riskLabels = {
   READ_ONLY: "SOLO LECTURA",
   TEMPDB_WRITE: "USA TEMPDB",
@@ -137,6 +138,57 @@ $("#copy").addEventListener("click", async () => {
   }
 });
 
+function renderChat() {
+  const container = $("#chat-messages");
+  container.replaceChildren();
+  if (chatMessages.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "chat-empty";
+    empty.textContent = "Escribí una pregunta para empezar.";
+    container.append(empty);
+    return;
+  }
+  for (const message of chatMessages) {
+    const item = document.createElement("div");
+    item.className = `chat-message chat-${message.role}`;
+    item.textContent = message.content;
+    container.append(item);
+  }
+  container.scrollTop = container.scrollHeight;
+}
+
+$("#chat-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const input = $("#chat-input");
+  const send = $("#chat-form button");
+  const content = input.value.trim();
+  if (!content || send.disabled) return;
+  chatMessages.push({ role: "user", content });
+  input.value = "";
+  send.disabled = true;
+  $("#chat-status").textContent = "Pensando...";
+  renderChat();
+  try {
+    const endpoint = document.body.dataset.chatEndpoint || "/api/chat";
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: chatMessages })
+    });
+    const data = await response.json();
+    if (!response.ok || typeof data.answer !== "string") throw new Error(data.error || `HTTP ${response.status}`);
+    chatMessages.push({ role: "assistant", content: data.answer });
+    $("#chat-status").textContent = "";
+  } catch (error) {
+    chatMessages.pop();
+    $("#chat-status").textContent = `No se pudo enviar: ${error.message}`;
+  } finally {
+    send.disabled = false;
+    renderChat();
+    input.focus();
+  }
+});
+
 let clipboardEntries = [];
 let clipboardAvailable = false;
 let clipboardBusy = false;
@@ -152,7 +204,7 @@ function renderClipboard() {
   $("#clipboard-clear").disabled = clipboardBusy || !clipboardAvailable || clipboardEntries.length === 0;
   $("#clipboard-refresh").disabled = clipboardBusy;
   $("#clipboard-form button").disabled = clipboardBusy;
-  $("#clipboard-auth-status").textContent = clipboardToken ? "Token guardado en esta pestaña; se verificará al escribir." : "Lectura pública. Conectá un token para guardar o borrar.";
+  $("#clipboard-auth-status").textContent = clipboardToken ? "Token guardado en esta pestaña; se verificará al leer y escribir." : "El portapapeles es privado. Conectá un token para leer, guardar o borrar.";
   clipboardEntries.forEach((entry, index) => {
     const item = document.createElement("li");
     const heading = document.createElement("div");
@@ -230,11 +282,17 @@ async function addClipboardText(text) {
 
 async function refreshClipboard() {
   if (clipboardBusy) return;
+  if (!clipboardToken) {
+    clipboardAvailable = false;
+    renderClipboard();
+    clipboardStatus.textContent = "Conectá un token de GitHub para consultar el portapapeles privado.";
+    return;
+  }
   clipboardBusy = true;
   renderClipboard();
   clipboardStatus.textContent = "Cargando desde GitHub...";
   try {
-    const current = await readEntries(fetch);
+    const current = await readEntries(fetch, clipboardToken);
     clipboardEntries = current.entries;
     clipboardAvailable = true;
     clipboardStatus.textContent = "Lista actualizada desde GitHub.";
@@ -271,6 +329,7 @@ $("#clipboard-token-form").addEventListener("submit", async (event) => {
     $("#clipboard-token").value = "";
     clipboardStatus.textContent = `Token válido para ${login}. El permiso de escritura se verificará al guardar.`;
     renderClipboard();
+    await refreshClipboard();
   } catch (error) {
     clipboardStatus.textContent = `No se pudo conectar: ${error.message}`;
   } finally {

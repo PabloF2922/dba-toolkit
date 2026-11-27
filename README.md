@@ -1,7 +1,7 @@
 # DBA Toolkit
 
 Biblioteca personal de scripts DBA, disponible localmente o como sitio publico
-en GitHub Pages, sin conexion a bases de datos ni servicios de IA.
+en GitHub Pages. El chat usa una API separada y protegida desplegada en Vercel.
 
 **Abrir la web:** [DBA Toolkit](https://pablof2922.github.io/dba-toolkit/)
 
@@ -10,7 +10,7 @@ en GitHub Pages, sin conexion a bases de datos ni servicios de IA.
 1. **Biblioteca local:** catalogo navegable, filtros, busqueda y copia del SQL.
 2. **Publicacion:** repositorio publico y despliegue automatico con GitHub Pages.
 3. **Contenido propio:** incorporar scripts autorizados, anonimizados y probados.
-4. **Asistente:** busqueda sobre archivos existentes, con backend protegido y
+4. **Asistente:** chat directo con ChatGPT mediante un backend protegido y
    sin acceso a bases de datos. El SQL mostrado debe provenir del archivo original.
 5. **Evolucion:** mas motores, runbooks y, si resulta util, generacion de SQL
    claramente identificada y separada de la busqueda.
@@ -57,28 +57,28 @@ en el campo guarda el texto automaticamente; tambien puedes escribirlo y
 seleccionar **Guardar texto**. Los scripts copiados desde la biblioteca no se
 agregan automaticamente. El tamaño total del archivo se limita a 512 KiB.
 
-**Los textos y su historial son publicos.** Al borrar o reemplazar un texto,
-Git conserva versiones anteriores. No hay vencimiento ni borrado automatico
-real. No incluyas credenciales, datos sensibles o material cuya publicacion
-no este autorizada.
+**Los textos y su historial quedan en el repositorio privado
+`dba-toolkit-portapapeles`.** Git conserva versiones anteriores incluso al
+borrar o reemplazar un texto. No hay vencimiento ni borrado automatico real.
+No incluyas credenciales, datos sensibles ni material no autorizado.
 
 Para guardar o borrar, crea en GitHub un fine-grained personal access token
-con acceso solo a este repositorio y permiso **Contents: Read and write**.
-En la seccion **Conectar token**, ingresalo en cada navegador donde quieras
-escribir. Este permiso permite modificar **todo** el contenido del repositorio,
-no solo el portapapeles. La web envia el token a la API de GitHub y lo guarda
-en `sessionStorage` de la pestaña; usa **Desconectar** al terminar.
+con acceso solo a `dba-toolkit-portapapeles` y permiso **Contents: Read and
+write**. En la seccion **Conectar token**, ingresalo en cada navegador donde
+quieras leer o escribir. Este permiso permite modificar todo el contenido del
+repositorio privado. La web envia el token a la API de GitHub y lo guarda en
+`sessionStorage` de la pestaña; usa **Desconectar** al terminar.
 El navegador podria restaurar o duplicar la sesion, por lo que no debe usarse
 en equipos no confiables. No compartas el token ni lo agregues al repositorio.
 Al conectar se valida que GitHub reconozca el token; el permiso para escribir se
-verifica al guardar. Un error HTTP 401 indica un token invalido, vencido o
+verifica al leer o guardar. Un error HTTP 401 indica un token invalido, vencido o
 revocado. Ante HTTP 403, verifica el propietario, el repositorio seleccionado
 y el permiso Contents; un limite de solicitudes se indica por separado.
 
 Si dos equipos guardan simultaneamente, GitHub puede rechazar uno de los
-cambios; actualiza la lista y vuelve a intentar. Cada cambio crea un commit,
-pero los commits que solo modifican `portapapeles/` no despliegan la web. El
-portapapeles local de versiones anteriores no se migra automaticamente.
+cambios; actualiza la lista y vuelve a intentar. Cada cambio crea un commit en
+el repositorio privado. El portapapeles local de versiones anteriores no se
+migra automaticamente.
 
 ## Agregar scripts
 
@@ -105,6 +105,31 @@ Ejecuta `npm run build` despues de cada cambio para actualizar
 `web/catalog.json`. El generador rechaza metadatos incompletos o invalidos.
 El SQL que muestra y copia el portal es el contenido completo del archivo,
 incluida su cabecera. Para comprobar el proyecto, ejecuta `npm test`.
+
+## Chat directo y clave de OpenAI
+
+La clave **no debe ponerse en `web/`, en el HTML, en JavaScript del navegador,
+ni en GitHub Pages**: todo eso es público. El chat usa `server.mjs`, que
+mantiene la clave en el servidor y llama a la API de OpenAI.
+
+Para probarlo localmente, copiá `.env.example` como `.env`, reemplazá
+`OPENAI_API_KEY` por tu clave y ejecutá:
+
+```powershell
+npm start
+```
+
+Después abrí `http://localhost:3000`. `.env` está ignorado por Git y nunca
+debe subirse al repositorio. La clave se guarda como variable de entorno
+secreta en el proveedor donde alojes el backend (por ejemplo Render, Railway
+o un servidor propio), no como secret del workflow de GitHub Pages.
+
+GitHub Pages solo sirve archivos estáticos y no puede ejecutar `server.mjs`.
+Si el backend queda en otro dominio, configurá `CHAT_ALLOWED_ORIGIN` con la
+URL exacta de Pages y cambiá `data-chat-endpoint` en `web/index.html` por la
+URL pública de `https://tu-backend.example/api/chat`. Esa URL no es secreta;
+la clave sí. El endpoint limita el historial, valida el contenido y no tiene
+acceso a tus bases de datos.
 
 Los ejemplos son puntos de partida, no scripts recuperados de conversaciones
 previas ni validados en tus servidores. Revisa permisos, compatibilidad,

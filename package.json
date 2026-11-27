@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "node tools/build-catalog.mjs",
-    "test": "node --test"
+    "test": "node --test",
+    "start": "node server.mjs"
   }
 }

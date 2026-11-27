@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="app.js"></script>
 </head>
-<body>
+<body data-chat-endpoint="/api/chat">
   <div class="app">
     <aside class="sidebar">
       <a class="brand" href="./" aria-label="DBA Toolkit, inicio">
@@ -50,18 +50,18 @@
         </section>
         <section id="clipboard" class="clipboard-section" aria-labelledby="clipboard-title">
           <div class="section-top"><div><div class="eyebrow"><span></span> TU ESPACIO TEMPORAL</div><h2 id="clipboard-title">Portapapeles</h2></div><span class="section-note">HASTA 5 TEXTOS</span></div>
-          <p class="clipboard-intro">Pegá o escribí un texto: se guarda en GitHub y se puede consultar desde cualquier equipo. No se agrega a la biblioteca.</p>
-          <p class="clipboard-privacy"><strong>Contenido público:</strong> cualquiera puede leer los textos y Git conserva sus versiones anteriores, incluso si se borran. No pegues contraseñas ni información sensible.</p>
+          <p class="clipboard-intro">Pegá o escribí un texto: se guarda en el repositorio privado y se puede consultar desde cualquier equipo autorizado. No se agrega a la biblioteca.</p>
+          <p class="clipboard-privacy"><strong>Contenido privado:</strong> solo usuarios con acceso al repositorio y un token autorizado pueden leerlo. Git conserva sus versiones anteriores, incluso si se borran. No pegues contraseñas ni información sensible.</p>
           <details class="clipboard-auth">
-            <summary>Conectar token de GitHub para guardar o borrar</summary>
-            <p>En GitHub elegí un token <strong>Fine-grained</strong>, seleccioná el propietario <strong>PabloF2922</strong> y en <strong>Only select repositories</strong> elegí <strong>dba-toolkit</strong>. En Repository permissions, asigná <strong>Contents: Read and write</strong>. El token permite modificar todo el contenido del repositorio. Guardalo solo en equipos confiables.</p>
+            <summary>Conectar token de GitHub para leer, guardar o borrar</summary>
+            <p>En GitHub elegí un token <strong>Fine-grained</strong>, seleccioná el propietario <strong>PabloF2922</strong> y en <strong>Only select repositories</strong> elegí <strong>dba-toolkit-portapapeles</strong>. En Repository permissions, asigná <strong>Contents: Read and write</strong>. El token permite modificar todo el contenido del repositorio. Guardalo solo en equipos confiables.</p>
             <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">Crear token en GitHub ↗</a>
             <form id="clipboard-token-form">
               <label for="clipboard-token">Token de GitHub</label>
               <input id="clipboard-token" type="password" autocomplete="off" placeholder="Pegá tu token aquí">
               <div class="clipboard-item-actions"><button type="submit" class="copy-button">Conectar</button><button type="button" id="clipboard-disconnect" class="text-button">Desconectar</button></div>
             </form>
-            <p>Se conserva en esta pestaña durante la sesión y se envía únicamente a la API de GitHub. Si restaurás o duplicás pestañas, el navegador podría conservarlo. La lectura no necesita token.</p>
+            <p>Se conserva en esta pestaña durante la sesión y se envía únicamente a la API de GitHub. Si restaurás o duplicás pestañas, el navegador podría conservarlo. La lectura del portapapeles privado también necesita token.</p>
           </details>
           <p id="clipboard-auth-status" class="clipboard-intro" role="status"></p>
           <form id="clipboard-form">
@@ -73,6 +73,16 @@
           <p id="clipboard-status" class="clipboard-status" role="status" aria-live="polite"></p>
           <p id="clipboard-empty" class="clipboard-empty" hidden>Todavía no hay textos compartidos.</p>
           <ol id="clipboard-list" class="clipboard-list"></ol>
+        </section>
+        <section class="chat-section" aria-labelledby="chat-title">
+          <div class="section-top"><div><div class="eyebrow"><span></span> CHAT DIRECTO</div><h2 id="chat-title">Preguntale a ChatGPT</h2></div><span class="section-note">SIN ACCESO A TUS BASES</span></div>
+          <p class="chat-intro">Hacé una consulta general. La clave queda en el servidor y nunca se envía al navegador.</p>
+          <div id="chat-messages" class="chat-messages" aria-live="polite"><p class="chat-empty">Escribí una pregunta para empezar.</p></div>
+          <form id="chat-form" class="chat-form">
+            <label class="sr-only" for="chat-input">Tu pregunta</label>
+            <textarea id="chat-input" rows="2" maxlength="8000" placeholder="Ej.: ¿Qué debería revisar antes de ejecutar un backup?" required></textarea>
+            <div class="chat-form-footer"><span id="chat-status" role="status"></span><button type="submit" class="copy-button">Enviar</button></div>
+          </form>
         </section>
         <section class="assistant-note"><div class="assistant-icon">✦</div><div><div class="assistant-title">DBA Assistant <span>PRÓXIMAMENTE</span></div><p>Más adelante vas a poder consultar tu biblioteca en lenguaje natural. Por ahora, usá la búsqueda para encontrar scripts existentes.</p></div></section>
         <footer>DBA TOOLKIT <span>·</span> TU CONOCIMIENTO, SIEMPRE A MANO <span class="footer-end">VERSIÓN 0.1</span></footer>
