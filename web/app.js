@@ -5,6 +5,8 @@ const engines = ["Todos", "SQL Server", "Oracle", "MariaDB", "MongoDB", "Postgre
 const $ = (selector) => document.querySelector(selector);
 const state = { scripts: [], engine: "Todos", category: "Todos", query: "", selected: null };
 const chatMessages = [];
+const chatAccessKey = "dba-toolkit.chat-password.v1";
+let chatPassword = "";
 const riskLabels = {
   READ_ONLY: "SOLO LECTURA",
   TEMPDB_WRITE: "USA TEMPDB",
@@ -163,6 +165,21 @@ $("#chat-form").addEventListener("submit", async (event) => {
   const send = $("#chat-form button");
   const content = input.value.trim();
   if (!content || send.disabled) return;
+  if (!chatPassword) {
+    try {
+      chatPassword = sessionStorage.getItem(chatAccessKey) || "";
+    } catch {
+      $("#chat-status").textContent = "El navegador no permite guardar el código de acceso.";
+      return;
+    }
+  }
+  if (!chatPassword) {
+    chatPassword = window.prompt("Ingresá el código privado del chat:")?.trim() || "";
+    if (!chatPassword) {
+      $("#chat-status").textContent = "Ingresá un código para usar el chat.";
+      return;
+    }
+  }
   chatMessages.push({ role: "user", content });
   input.value = "";
   send.disabled = true;
@@ -172,12 +189,18 @@ $("#chat-form").addEventListener("submit", async (event) => {
     const endpoint = document.body.dataset.chatEndpoint || "/api/chat";
     const response = await fetch(endpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-Chat-Password": chatPassword },
       body: JSON.stringify({ messages: chatMessages })
     });
     const data = await response.json();
+    if (response.status === 401) {
+      chatPassword = "";
+      sessionStorage.removeItem(chatAccessKey);
+      throw new Error("Código incorrecto. Volvé a intentarlo.");
+    }
     if (!response.ok || typeof data.answer !== "string") throw new Error(data.error || `HTTP ${response.status}`);
     chatMessages.push({ role: "assistant", content: data.answer });
+    sessionStorage.setItem(chatAccessKey, chatPassword);
     $("#chat-status").textContent = "";
   } catch (error) {
     chatMessages.pop();
